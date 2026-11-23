@@ -1,0 +1,523 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>verdy-forecast 全体図</title>
+<style>
+  :root {
+    --bg: #f6f6f3;
+    --surface: #ffffff;
+    --box: #f6f6f3;
+    --fg: #1d2125;
+    --muted: #5f6872;
+    --border: #d6dade;
+    --accent: #0b7a3e;
+    --on-accent: #ffffff;
+    --code-bg: #eceee9;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #15181b;
+      --surface: #1d2125;
+      --box: #15181b;
+      --fg: #e6e8ea;
+      --muted: #9aa3ac;
+      --border: #353b41;
+      --accent: #4fc283;
+      --on-accent: #0d1f15;
+      --code-bg: #262b30;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #15181b;
+    --surface: #1d2125;
+    --box: #15181b;
+    --fg: #e6e8ea;
+    --muted: #9aa3ac;
+    --border: #353b41;
+    --accent: #4fc283;
+    --on-accent: #0d1f15;
+    --code-bg: #262b30;
+  }
+
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--fg);
+    font-family: "Yu Gothic UI", "Hiragino Sans", "Meiryo", system-ui, sans-serif;
+    line-height: 1.7;
+  }
+  main { max-width: 1080px; margin: 0 auto; padding: 32px 16px 64px; }
+  h1 { font-size: 1.6rem; margin: 0 0 4px; }
+  h2 {
+    font-size: 1.2rem;
+    margin: 44px 0 12px;
+    padding-bottom: 6px;
+    border-bottom: 1px solid var(--border);
+  }
+  p { margin: 0 0 12px; }
+  .meta { color: var(--muted); font-size: .9rem; }
+  .note { color: var(--muted); font-size: .9rem; }
+  .note.source { margin-top: 16px; }
+  code {
+    font-family: "Cascadia Code", Consolas, monospace;
+    font-size: .86em;
+    background: var(--code-bg);
+    padding: 1px 5px;
+    border-radius: 4px;
+  }
+
+  figure {
+    margin: 0;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 16px;
+  }
+  figure svg { display: block; width: 100%; height: auto; color: var(--fg); }
+  figcaption { margin-top: 12px; color: var(--muted); font-size: .9rem; }
+
+  .table-wrap { overflow-x: auto; }
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    font-size: .92rem;
+  }
+  th, td {
+    text-align: left;
+    vertical-align: top;
+    padding: 8px 12px;
+    border-bottom: 1px solid var(--border);
+  }
+  th { color: var(--muted); font-weight: 600; white-space: nowrap; }
+  td.nowrap { white-space: nowrap; }
+
+  .chip {
+    display: inline-block;
+    padding: 0 9px;
+    margin: 2px 4px 2px 0;
+    border: 1px solid var(--border);
+    border-radius: 999px;
+    color: var(--muted);
+    font-size: .8rem;
+    white-space: nowrap;
+  }
+  .chip.done { background: var(--accent); border-color: var(--accent); color: var(--on-accent); }
+  .chip.doing { border-color: var(--accent); color: var(--accent); font-weight: 700; }
+
+  .legend {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px 22px;
+    margin: 0 0 10px;
+    color: var(--muted);
+    font-size: .88rem;
+  }
+  .legend span { display: inline-flex; align-items: center; gap: 8px; }
+  .legend svg { width: 34px; height: 16px; }
+
+  /* 図（インライン SVG）の部品 */
+  svg text { text-anchor: middle; font-family: inherit; }
+  svg text.start { text-anchor: start; }
+  .box { fill: var(--box); stroke: var(--fg); stroke-width: 1.2; }
+  .box.done { stroke: var(--accent); stroke-width: 2; }
+  .box.plan { stroke: var(--muted); stroke-dasharray: 5 4; }
+  .frame { fill: none; stroke: var(--muted); stroke-width: 1.2; stroke-dasharray: 7 5; }
+  .edge { fill: none; stroke: var(--fg); stroke-width: 1.4; }
+  .edge.plan { stroke: var(--muted); stroke-dasharray: 5 4; }
+  .head { fill: var(--fg); }
+  .head.muted { fill: var(--muted); }
+  .t { font-size: 13px; font-weight: 600; fill: var(--fg); }
+  .s { font-size: 11.5px; fill: var(--muted); }
+  .grp { font-size: 12px; font-weight: 700; fill: var(--muted); letter-spacing: .04em; }
+  .lbl {
+    font-size: 11.5px;
+    fill: var(--fg);
+    paint-order: stroke;
+    stroke: var(--surface);
+    stroke-width: 4px;
+    stroke-linejoin: round;
+  }
+</style>
+</head>
+<body>
+<main>
+
+<header>
+  <h1>verdy-forecast 全体図</h1>
+  <p class="meta">最終更新: 2026-11-23（作業指示書 1-4 が終わった時点）</p>
+  <p>東京ヴェルディの次の試合について、勝ち・引き分け・負けの確率と予想スコアを出す個人用の Web アプリ。開発のステップが終わるたびに、この図を更新する。</p>
+</header>
+
+<!-- ============================================================ -->
+<section>
+  <h2>進み具合</h2>
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr><th>Phase</th><th>中身</th><th>状態</th><th>要決定</th></tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td class="nowrap">0</td>
+          <td>準備（予算アラート、Azure・GitHub・Azure DevOps の設定、開発環境）。担当は自分</td>
+          <td><span class="chip done">0-8 済</span><span class="chip done">0-10 済</span><span class="chip">ほかは確認待ち</span></td>
+          <td>D1〜D3 は未記録</td>
+        </tr>
+        <tr>
+          <td class="nowrap">1</td>
+          <td>リポジトリの骨組み</td>
+          <td><span class="chip done">1-1 済</span><span class="chip done">1-2 済</span><span class="chip done">1-3 済</span><span class="chip done">1-4 済</span><span class="chip doing">1-5 次</span><span class="chip">1-6</span><span class="chip">1-7</span></td>
+          <td>—</td>
+        </tr>
+        <tr><td>2</td><td>ドメイン（ルールと計算）</td><td><span class="chip">未着手</span></td><td>D4〜D8</td></tr>
+        <tr><td>3</td><td>アプリケーション（ユースケース）</td><td><span class="chip">未着手</span></td><td>D9、D10</td></tr>
+        <tr><td>4</td><td>インフラストラクチャ（SQL、Blob、API-Football、AI Language）</td><td><span class="chip">未着手</span></td><td>—</td></tr>
+        <tr><td>5</td><td>API（BFF とエンドポイント）</td><td><span class="chip">未着手</span></td><td>D11</td></tr>
+        <tr><td>6</td><td>画面</td><td><span class="chip">未着手</span></td><td>D12、D13</td></tr>
+        <tr><td>7</td><td>試合後の処理（Azure Functions）</td><td><span class="chip">未着手</span></td><td>D14</td></tr>
+        <tr><td>8</td><td>インフラのコード化とデプロイのパイプライン</td><td><span class="chip">未着手</span></td><td>—</td></tr>
+        <tr><td>9</td><td>公開と確認</td><td><span class="chip">未着手</span></td><td>—</td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<!-- ============================================================ -->
+<section>
+  <h2>コードの構成（今の状態）</h2>
+  <div class="legend" aria-hidden="true">
+    <span><svg viewBox="0 0 34 16"><rect class="box done" x="1" y="1" width="32" height="14" rx="3"/></svg>作成済み</span>
+    <span><svg viewBox="0 0 34 16"><rect class="box plan" x="1" y="1" width="32" height="14" rx="3"/></svg>予定</span>
+    <span><svg viewBox="0 0 34 16"><line class="edge" x1="2" y1="8" x2="26" y2="8"/><path class="head" d="M24,3 L33,8 L24,13 z"/></svg>参照する向き</span>
+  </div>
+  <figure>
+    <svg viewBox="0 0 960 440" role="img" aria-label="プロジェクトの参照関係。Api と Functions は Application を参照し、Infrastructure は DI の登録だけに使う。Infrastructure は Application と Domain を参照し、Application は Domain を参照する。Domain は何も参照しない。テストの6プロジェクトはそれぞれの対象を参照し、ArchitectureTests は src の5つ全部を参照する。web と e2e は予定。">
+      <defs>
+        <marker id="b-arr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+          <path class="head" d="M0,0 L10,5 L0,10 z"/>
+        </marker>
+        <marker id="b-arr-m" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+          <path class="head muted" d="M0,0 L10,5 L0,10 z"/>
+        </marker>
+      </defs>
+
+      <text class="grp start" x="20" y="24">src</text>
+      <text class="grp start" x="640" y="24">tests</text>
+
+      <!-- web（予定） -->
+      <rect class="box plan" x="20" y="40" width="140" height="56" rx="8"/>
+      <text class="t" x="90" y="63">web</text>
+      <text class="s" x="90" y="81">React・予定 6-1</text>
+      <line class="edge plan" x1="160" y1="68" x2="238" y2="68" marker-end="url(#b-arr-m)"/>
+      <text class="lbl" x="199" y="60">HTTP</text>
+
+      <!-- 入口: Api と Functions -->
+      <rect class="box done" x="240" y="40" width="160" height="56" rx="8"/>
+      <text class="t" x="320" y="63">Api</text>
+      <text class="s" x="320" y="81">BFF・エンドポイント</text>
+
+      <rect class="box done" x="430" y="40" width="160" height="56" rx="8"/>
+      <text class="t" x="510" y="63">Functions</text>
+      <text class="s" x="510" y="81">試合後の処理</text>
+
+      <!-- 内側の層 -->
+      <rect class="box done" x="335" y="150" width="160" height="56" rx="8"/>
+      <text class="t" x="415" y="173">Infrastructure</text>
+      <text class="s" x="415" y="191">SQL・Blob・外部 API</text>
+
+      <rect class="box done" x="335" y="260" width="160" height="56" rx="8"/>
+      <text class="t" x="415" y="283">Application</text>
+      <text class="s" x="415" y="301">ユースケース・ポート</text>
+
+      <rect class="box done" x="335" y="370" width="160" height="56" rx="8"/>
+      <text class="t" x="415" y="393">Domain</text>
+      <text class="s" x="415" y="411">ルールと計算・依存なし</text>
+
+      <!-- 参照の矢印 -->
+      <line class="edge" x1="330" y1="96" x2="383" y2="148" marker-end="url(#b-arr)"/>
+      <line class="edge" x1="520" y1="96" x2="447" y2="148" marker-end="url(#b-arr)"/>
+      <text class="lbl" x="415" y="126">DI の登録だけ</text>
+
+      <path class="edge" d="M255,96 V288 H333" marker-end="url(#b-arr)"/>
+      <path class="edge" d="M575,96 V288 H497" marker-end="url(#b-arr)"/>
+
+      <line class="edge" x1="415" y1="206" x2="415" y2="258" marker-end="url(#b-arr)"/>
+      <text class="s start" x="425" y="236">Domain も直接参照</text>
+
+      <line class="edge" x1="415" y1="316" x2="415" y2="368" marker-end="url(#b-arr)"/>
+
+      <!-- テスト -->
+      <rect class="box done" x="640" y="40" width="300" height="42" rx="8"/>
+      <text class="t start" x="656" y="58">Domain.Tests</text>
+      <text class="s start" x="656" y="74">→ Domain</text>
+
+      <rect class="box done" x="640" y="90" width="300" height="42" rx="8"/>
+      <text class="t start" x="656" y="108">Application.Tests</text>
+      <text class="s start" x="656" y="124">→ Application</text>
+
+      <rect class="box done" x="640" y="140" width="300" height="42" rx="8"/>
+      <text class="t start" x="656" y="158">Infrastructure.IntegrationTests</text>
+      <text class="s start" x="656" y="174">→ Infrastructure</text>
+
+      <rect class="box done" x="640" y="190" width="300" height="42" rx="8"/>
+      <text class="t start" x="656" y="208">Api.IntegrationTests</text>
+      <text class="s start" x="656" y="224">→ Api</text>
+
+      <rect class="box done" x="640" y="240" width="300" height="42" rx="8"/>
+      <text class="t start" x="656" y="258">Functions.IntegrationTests</text>
+      <text class="s start" x="656" y="274">→ Functions</text>
+
+      <rect class="box done" x="640" y="290" width="300" height="42" rx="8"/>
+      <text class="t start" x="656" y="308">ArchitectureTests</text>
+      <text class="s start" x="656" y="324">→ src の5つ全部（依存ルール・17件）</text>
+
+      <rect class="box plan" x="640" y="340" width="300" height="42" rx="8"/>
+      <text class="t start" x="656" y="358">e2e</text>
+      <text class="s start" x="656" y="374">Playwright・予定 6-4</text>
+    </svg>
+    <figcaption>
+      矢印は「参照する」向き。Api と Functions が Infrastructure を使ってよいのは、<code>Program.cs</code> での DI の登録だけ。
+      依存ルールは ArchitectureTests で自動チェックしている（層の向き、Program 以外からの Infrastructure の利用、外部ライブラリ、現在時刻の直接の読み取り）。名前の先頭の <code>VerdyForecast.</code> は省略している。
+      src のプロジェクトはまだ中身が空。パッケージが入っているのは ArchitectureTests（xUnit v3、ArchUnitNET）だけで、ほかのテストのパッケージは、そのプロジェクトで最初のテストを書くステップで入れる（MTP では、テストが0件だと失敗扱いになるため）。
+    </figcaption>
+  </figure>
+</section>
+
+<!-- ============================================================ -->
+<section>
+  <h2>実行時の構成（設計・まだデプロイしていない）</h2>
+  <figure>
+    <svg viewBox="0 0 1040 490" role="img" aria-label="実行時の構成。ブラウザは Cookie と X-CSRF ヘッダーで App Service の Api を呼ぶ。Api は Entra ID と OpenID Connect でログインし、マネージド ID で Azure SQL、Blob Storage、Key Vault、AI Language に接続する。Functions はマネージド ID で Azure SQL、Blob Storage、Key Vault に接続し、Storage キューでメッセージを送受信し、API-Football から試合結果を取得する。Wikipedia は代替の取得元。">
+      <defs>
+        <marker id="a-arr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+          <path class="head" d="M0,0 L10,5 L0,10 z"/>
+        </marker>
+        <marker id="a-arr-m" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+          <path class="head muted" d="M0,0 L10,5 L0,10 z"/>
+        </marker>
+      </defs>
+
+      <!-- Azure の範囲 -->
+      <rect class="frame" x="200" y="12" width="665" height="466" rx="14"/>
+      <text class="grp start" x="216" y="31">Azure（東日本）・rg-verdy-forecast</text>
+
+      <!-- 上の段: ブラウザ → Api → Entra ID -->
+      <rect class="box" x="20" y="40" width="150" height="70" rx="8"/>
+      <text class="t" x="95" y="70">ブラウザ</text>
+      <text class="s" x="95" y="90">React（Vite）</text>
+
+      <rect class="box" x="300" y="40" width="260" height="70" rx="8"/>
+      <text class="s" x="430" y="62">App Service F1</text>
+      <text class="t" x="430" y="80">VerdyForecast.Api</text>
+      <text class="s" x="430" y="98">BFF・API・画面の配信</text>
+
+      <rect class="box" x="895" y="40" width="130" height="70" rx="8"/>
+      <text class="t" x="960" y="70">Entra ID</text>
+      <text class="s" x="960" y="90">ログイン・MFA</text>
+
+      <line class="edge" x1="170" y1="75" x2="298" y2="75" marker-end="url(#a-arr)"/>
+      <text class="lbl" x="235" y="66">Cookie + X-CSRF</text>
+      <line class="edge" x1="560" y1="75" x2="893" y2="75" marker-end="url(#a-arr)"/>
+      <text class="lbl" x="727" y="66">OpenID Connect</text>
+
+      <!-- Api からのマネージド ID 接続 -->
+      <path class="edge" d="M430,110 V155"/>
+      <path class="edge" d="M300,198 V155 H780 V198" marker-start="url(#a-arr)" marker-end="url(#a-arr)"/>
+      <path class="edge" d="M460,155 V198" marker-end="url(#a-arr)"/>
+      <path class="edge" d="M620,155 V198" marker-end="url(#a-arr)"/>
+      <text class="lbl" x="540" y="147">マネージド ID</text>
+
+      <!-- データの置き場所 -->
+      <rect class="box" x="230" y="200" width="140" height="64" rx="8"/>
+      <text class="t" x="300" y="227">Azure SQL（無料枠）</text>
+      <text class="s" x="300" y="247">試合・予想・記録</text>
+
+      <rect class="box" x="390" y="200" width="140" height="64" rx="8"/>
+      <text class="t" x="460" y="227">Blob Storage</text>
+      <text class="s" x="460" y="247">原本・学習用データ</text>
+
+      <rect class="box" x="550" y="200" width="140" height="64" rx="8"/>
+      <text class="t" x="620" y="227">Key Vault</text>
+      <text class="s" x="620" y="247">API キー</text>
+
+      <rect class="box" x="710" y="200" width="140" height="64" rx="8"/>
+      <text class="t" x="780" y="227">AI Language F0</text>
+      <text class="s" x="780" y="247">タグの候補</text>
+
+      <!-- Functions からのマネージド ID 接続 -->
+      <path class="edge" d="M430,370 V315"/>
+      <path class="edge" d="M300,266 V315 H620 V266" marker-start="url(#a-arr)" marker-end="url(#a-arr)"/>
+      <path class="edge" d="M460,315 V266" marker-end="url(#a-arr)"/>
+      <text class="lbl" x="540" y="333">マネージド ID</text>
+
+      <!-- 下の段: 外部 API ← Functions ↔ キュー -->
+      <rect class="box" x="300" y="370" width="260" height="80" rx="8"/>
+      <text class="s" x="430" y="394">Azure Functions（Flex Consumption）</text>
+      <text class="t" x="430" y="412">VerdyForecast.Functions</text>
+      <text class="s" x="430" y="430">タイマー → キュー → 処理</text>
+
+      <rect class="box" x="680" y="370" width="170" height="80" rx="8"/>
+      <text class="t" x="765" y="404">Storage キュー</text>
+      <text class="s" x="765" y="423">＋ポイズンキュー</text>
+      <line class="edge" x1="562" y1="410" x2="678" y2="410" marker-start="url(#a-arr)" marker-end="url(#a-arr)"/>
+      <text class="lbl" x="620" y="401">送受信</text>
+
+      <rect class="box" x="20" y="362" width="150" height="48" rx="8"/>
+      <text class="t" x="95" y="382">API-Football</text>
+      <text class="s" x="95" y="399">無料・1日100回まで</text>
+      <line class="edge" x1="300" y1="386" x2="172" y2="386" marker-end="url(#a-arr)"/>
+      <text class="lbl" x="235" y="378">取得（許可リスト）</text>
+
+      <rect class="box" x="20" y="420" width="150" height="48" rx="8"/>
+      <text class="t" x="95" y="440">Wikipedia</text>
+      <text class="s" x="95" y="457">CC BY-SA</text>
+      <line class="edge plan" x1="300" y1="444" x2="172" y2="444" marker-end="url(#a-arr-m)"/>
+      <text class="lbl" x="235" y="436">代替（D1 次第）</text>
+    </svg>
+    <figcaption>
+      Api と Functions は、パスワードを使わずにマネージド ID で各サービスに接続する。ブラウザが持つのはセッションの Cookie だけで、トークンは渡さない。
+      外部への呼び出しは許可リストのホストだけ。Jリーグ公式サイト、FBref、X からは自動で取得しない。
+      Azure のリソースは Phase 8 で Bicep とパイプラインから作る。
+    </figcaption>
+  </figure>
+</section>
+
+<!-- ============================================================ -->
+<section>
+  <h2>試合後の処理の流れ（設計・Phase 7）</h2>
+  <figure>
+    <svg viewBox="0 0 970 260" role="img" aria-label="試合後の処理の流れ。タイマーが終わった試合を見つけて、試合ごとに MatchFinished メッセージをキューに送る。結果の取り込み、計算し直し、答え合わせの順に、キューを経由して処理する。どの処理でも失敗が続いたら、メッセージはポイズンキューに移り、アラートを出す。">
+      <defs>
+        <marker id="c-arr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+          <path class="head" d="M0,0 L10,5 L0,10 z"/>
+        </marker>
+        <marker id="c-arr-m" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+          <path class="head muted" d="M0,0 L10,5 L0,10 z"/>
+        </marker>
+      </defs>
+
+      <rect class="box" x="20" y="40" width="120" height="70" rx="8"/>
+      <text class="t" x="80" y="70">タイマー</text>
+      <text class="s" x="80" y="90">間隔は D14</text>
+
+      <rect class="box" x="200" y="40" width="120" height="70" rx="8"/>
+      <text class="t" x="260" y="70">キュー</text>
+      <text class="s" x="260" y="90">MatchFinished</text>
+
+      <rect class="box" x="380" y="40" width="160" height="70" rx="8"/>
+      <text class="t" x="460" y="70">1. 結果の取り込み</text>
+      <text class="s" x="460" y="90">原本 → 検証 → SQL</text>
+
+      <rect class="box" x="600" y="40" width="160" height="70" rx="8"/>
+      <text class="t" x="680" y="70">2. 計算し直し</text>
+      <text class="s" x="680" y="90">Elo と次の予想</text>
+
+      <rect class="box" x="820" y="40" width="140" height="70" rx="8"/>
+      <text class="t" x="890" y="70">3. 答え合わせ</text>
+      <text class="s" x="890" y="90">評価指標を記録</text>
+
+      <line class="edge" x1="140" y1="75" x2="198" y2="75" marker-end="url(#c-arr)"/>
+      <text class="lbl" x="170" y="66">送る</text>
+      <line class="edge" x1="320" y1="75" x2="378" y2="75" marker-end="url(#c-arr)"/>
+      <text class="lbl" x="349" y="66">受け取る</text>
+      <line class="edge" x1="540" y1="75" x2="598" y2="75" marker-end="url(#c-arr)"/>
+      <text class="lbl" x="569" y="66">キュー</text>
+      <line class="edge" x1="760" y1="75" x2="818" y2="75" marker-end="url(#c-arr)"/>
+      <text class="lbl" x="789" y="66">キュー</text>
+
+      <!-- 失敗したとき -->
+      <path class="edge plan" d="M460,110 V150 H890 V110"/>
+      <path class="edge plan" d="M680,110 V150"/>
+      <path class="edge plan" d="M680,150 V188" marker-end="url(#c-arr-m)"/>
+      <text class="lbl" x="570" y="143">どの処理でも失敗が続いたら</text>
+
+      <rect class="box" x="600" y="190" width="160" height="50" rx="8"/>
+      <text class="t" x="680" y="211">ポイズンキュー</text>
+      <text class="s" x="680" y="228">失敗したメッセージ</text>
+
+      <rect class="box" x="820" y="190" width="140" height="50" rx="8"/>
+      <text class="t" x="890" y="211">アラート</text>
+      <text class="s" x="890" y="228">メールで通知（9-2）</text>
+      <line class="edge" x1="760" y1="215" x2="818" y2="215" marker-end="url(#c-arr)"/>
+      <text class="lbl" x="789" y="207">検知</text>
+    </svg>
+    <figcaption>
+      各処理が終わると、次の処理のメッセージをキューに送る。メッセージには ID と種類だけを入れて、個人のデータは入れない。
+      処理済みの <code>messageId</code> を SQL に記録して、同じメッセージが2回届いても二重に処理しない。SQL への書き込みはトランザクションでまとめる。
+    </figcaption>
+  </figure>
+</section>
+
+<!-- ============================================================ -->
+<section>
+  <h2>フォルダと状態</h2>
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr><th>場所</th><th>中身</th><th>状態</th></tr>
+      </thead>
+      <tbody>
+        <tr><td><code>.claude/</code></td><td>開発ルール（スキル）と、Claude Code の権限の設定</td><td><span class="chip done">作成済み</span></td></tr>
+        <tr><td><code>docs/work-instructions.md</code><br><code>docs/evaluation-procedure.md</code></td><td>作業指示書、評価手順書</td><td><span class="chip done">作成済み</span></td></tr>
+        <tr><td><code>docs/project-overview.html</code></td><td>この全体図</td><td><span class="chip done">作成済み</span></td></tr>
+        <tr><td><code>docs/threat-model.md</code></td><td>脅威モデル</td><td><span class="chip">予定 1-5</span></td></tr>
+        <tr><td><code>docs/evaluation-records/</code></td><td>評価の記録</td><td><span class="chip">予定 9-4</span></td></tr>
+        <tr><td><code>VerdyForecast.slnx</code></td><td>ソリューション（src と tests のフォルダ分け）</td><td><span class="chip done">作成済み</span></td></tr>
+        <tr><td><code>src/VerdyForecast.*</code>（5つ）</td><td>Domain、Application、Infrastructure、Api、Functions</td><td><span class="chip done">作成済み</span><span class="chip">中身は空</span></td></tr>
+        <tr><td><code>src/web/</code></td><td>React＋TypeScript（Vite）</td><td><span class="chip">予定 6-1</span></td></tr>
+        <tr><td><code>tests/VerdyForecast.*</code>（6つ）</td><td>.NET のテスト（単体、結合、依存ルール）</td><td><span class="chip done">作成済み</span><span class="chip">ArchitectureTests の17件だけ</span></td></tr>
+        <tr><td><code>tests/e2e/</code></td><td>Playwright</td><td><span class="chip">予定 6-4</span></td></tr>
+        <tr><td><code>Directory.Build.props</code></td><td>全プロジェクト共通の設定（.NET 10、警告をエラーに、コードスタイルをビルドで強制、ロックファイル、NuGetAudit）</td><td><span class="chip done">作成済み</span></td></tr>
+        <tr><td><code>Directory.Packages.props</code></td><td>パッケージのバージョンの一元管理（推移的な依存も固定できる）。今はパッケージ0個</td><td><span class="chip done">作成済み</span></td></tr>
+        <tr><td><code>global.json</code></td><td>SDK を 10.0.400 以上の 10.0 系に固定。テストの実行方式は MTP</td><td><span class="chip done">作成済み</span></td></tr>
+        <tr><td><code>nuget.config</code></td><td>パッケージの取得元を nuget.org だけにする（パッケージソースマッピング）</td><td><span class="chip done">作成済み</span></td></tr>
+        <tr><td><code>.editorconfig</code></td><td>コードスタイル。ビルドで強制するのは、不要な using、ファイル単位の namespace、名前の規則</td><td><span class="chip done">作成済み</span></td></tr>
+        <tr><td><code>.gitignore</code><br><code>.gitattributes</code></td><td>コミットしないもの（生成物、秘密情報、<code>analysis/data/</code> など）と、改行コードの統一</td><td><span class="chip done">作成済み</span></td></tr>
+        <tr><td><code>**/packages.lock.json</code></td><td>各プロジェクトのロックファイル。CI では <code>--locked-mode</code> で照合する</td><td><span class="chip done">作成済み</span></td></tr>
+        <tr><td><code>pipelines/ci.yml</code><br><code>.github/dependabot.yml</code></td><td>CI、依存パッケージの更新</td><td><span class="chip">予定 1-6</span></td></tr>
+        <tr><td><code>pipelines/cd.yml</code></td><td>インフラとアプリのデプロイ</td><td><span class="chip">予定 8-3</span></td></tr>
+        <tr><td><code>infra/</code></td><td>Bicep、PSRule for Azure の設定</td><td><span class="chip">予定 8-1・8-2</span></td></tr>
+        <tr><td><code>analysis/</code></td><td>自分の PC での分析（Jupyter）。<code>data/</code> はコミットしない</td><td><span class="chip">任意</span></td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<!-- ============================================================ -->
+<section>
+  <h2>更新履歴</h2>
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr><th>日付</th><th>ステップ</th><th>変わったこと</th></tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td class="nowrap">2026-11-23</td>
+          <td class="nowrap">1-4</td>
+          <td>ArchitectureTests に依存ルールのテスト17件を追加（xUnit v3 4.0.3、ArchUnitNET 0.13.5）。違反するコードを一時的に入れて、7種類の違反がすべて検出されることを確認した。</td>
+        </tr>
+        <tr>
+          <td class="nowrap">2026-11-23</td>
+          <td class="nowrap">1-3</td>
+          <td>共通の設定ファイル（<code>Directory.Build.props</code>、<code>Directory.Packages.props</code>、<code>global.json</code>、<code>.editorconfig</code>、<code>.gitignore</code>）と、<code>nuget.config</code>、<code>.gitattributes</code> を追加。各 csproj の重複した設定を削除し、ロックファイルを作成。</td>
+        </tr>
+        <tr>
+          <td class="nowrap">2026-11-23</td>
+          <td class="nowrap">1-2</td>
+          <td>ソリューション <code>VerdyForecast.slnx</code> と、src の5つ・tests の6つのプロジェクトを作成。参照は依存ルールのとおり。この全体図を作成。</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+  <p class="note source">この図は、作業指示書（<code>docs/work-instructions.md</code>）とスキルの <code>architecture.md</code> をもとに作っている。食い違ったときは、そちらが正しい。</p>
+</section>
+
+</main>
+</body>
+</html>
