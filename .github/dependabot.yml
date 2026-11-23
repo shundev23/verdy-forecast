@@ -1,0 +1,30 @@
+# 依存パッケージの更新（作業指示書 1-6）。
+# - セキュリティ更新は、リポジトリの設定（0-6）で有効にしてある。セキュリティ更新には cooldown は効かず、すぐに PR が来る。
+# - npm（src/web）は、画面のプロジェクトを作る 6-1 で足す。
+version: 2
+updates:
+  - package-ecosystem: nuget
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+      time: "09:00"
+      timezone: Asia/Tokyo
+    open-pull-requests-limit: 5
+    # 公開されてから7日たっていない版は提案しない（乗っ取られたパッケージの新しい版を、すぐに入れないため）
+    cooldown:
+      default-days: 7
+    groups:
+      # テストのパッケージは、まとめて1つの PR にする（今後入れる予定のものも含める）
+      test-packages:
+        patterns:
+          - "xunit*"
+          - "TngTech.ArchUnitNET*"
+          - "Shouldly"
+          - "NSubstitute*"
+          - "Testcontainers*"
+          - "Microsoft.AspNetCore.Mvc.Testing"
+          - "Microsoft.Extensions.TimeProvider.Testing"
+          - "Microsoft.Testing.*"
+    commit-message:
+      prefix: deps
