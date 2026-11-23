@@ -130,7 +130,7 @@ PR ごとのチェックは、作業指示書でそのチェックを入れた P
 | A03 | 部品の一覧表（SBOM） | 自動（CI） | CI の成果物を見る | .NET と npm の SBOM が毎回作られている |
 | A03 | バージョンの固定 | Claude Code | ロックファイルと CI の定義を見る | `packages.lock.json` と `package-lock.json` があり、CI は `--locked-mode` と `npm ci` で動いている |
 | A03 | ライセンス | Claude Code が一覧を作る、自分が判断 | 部品のライセンスの一覧を見る | 商用ライセンスや、条件が不明なものがない |
-| A03 | フォークからの PR | 自分 | Azure DevOps のパイプラインの設定画面を見る | フォークの PR にシークレットを渡さない。チームメンバーのコメントがないとビルドしない |
+| A03 | フォークからの PR | 自分 | Azure DevOps の組織・プロジェクトの設定画面（Pipelines → Settings）を見る | 「Limit building pull requests from forked GitHub repositories」がオンで、「Disable building pull requests from forked repositories」が選ばれている（フォークの PR はビルドされない） |
 | A04 暗号化 | 通信 | 自分 | 本番に HTTP でアクセスする。ヘッダーを見る | HTTPS に転送される。HSTS が付いている |
 | A04 | 秘密情報 | 自動（GitHub）、設定は自分 | シークレットスキャンのアラート、App Service の設定画面 | アラートが0件。設定には Key Vault 参照しかない |
 | A05 インジェクション | XSS | 自動テスト、画面は自分 | メモに `<script>alert(1)</script>` や `<img src=x onerror=alert(1)>` を入れて表示する | 文字としてそのまま表示され、スクリプトは動かない |
