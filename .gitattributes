@@ -1,0 +1,20 @@
+# 改行コードをそろえる。リポジトリの中は LF にして、作業フォルダーでは OS に合わせる。
+* text=auto
+
+# Windows で動かすスクリプトは CRLF
+*.ps1 text eol=crlf
+*.cmd text eol=crlf
+*.bat text eol=crlf
+
+# Linux（CI のエージェント）で動かすスクリプトは LF
+*.sh text eol=lf
+
+# バイナリ（改行コードの変換をしない）
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.ico binary
+*.pdf binary
+*.woff binary
+*.woff2 binary

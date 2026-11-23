@@ -1,0 +1,8 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <ItemGroup>
+    <ProjectReference Include="..\VerdyForecast.Application\VerdyForecast.Application.csproj" />
+    <ProjectReference Include="..\VerdyForecast.Domain\VerdyForecast.Domain.csproj" />
+  </ItemGroup>
+
+</Project>

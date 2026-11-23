@@ -1,0 +1,18 @@
+<Project>
+  <!--
+    パッケージのバージョンを一か所で管理する（セントラルパッケージ管理）。
+    各 csproj の PackageReference にはバージョンを書かず、ここに PackageVersion を足す。
+    パッケージを足すときは、スキルの「パッケージを足すとき」のチェックリスト（ライセンス、脆弱性、本当に必要か）を確認する。
+  -->
+  <PropertyGroup>
+    <ManagePackageVersionsCentrally>true</ManagePackageVersionsCentrally>
+    <!-- 推移的な依存に脆弱性が見つかったとき、ここでバージョンを上げて固定できるようにする -->
+    <CentralPackageTransitivePinningEnabled>true</CentralPackageTransitivePinningEnabled>
+  </PropertyGroup>
+
+  <!-- テスト。テストのパッケージは、そのプロジェクトで最初のテストを書くステップで足す（MTP では、テストが0件だと失敗扱いになるため） -->
+  <ItemGroup>
+    <PackageVersion Include="TngTech.ArchUnitNET.xUnitV3" Version="0.13.5" />
+    <PackageVersion Include="xunit.v3" Version="4.0.3" />
+  </ItemGroup>
+</Project>

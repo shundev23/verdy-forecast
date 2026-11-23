@@ -1,0 +1,51 @@
+# このリポジトリは公開リポジトリ。取得したデータ、自分の記録、秘密情報はコミットしない。
+
+# ===== .NET =====
+bin/
+obj/
+.vs/
+*.user
+*.suo
+*.rsuser
+TestResults/
+*.trx
+*.coverage
+*.cobertura.xml
+StrykerOutput/
+
+# ===== 画面（Node、Vite、Vitest、Playwright） =====
+node_modules/
+dist/
+coverage/
+*.tsbuildinfo
+playwright-report/
+test-results/
+blob-report/
+playwright/.cache/
+
+# ===== Azure Functions と Azurite（ローカル） =====
+local.settings.json
+__azurite_db*.json
+__blobstorage__/
+__queuestorage__/
+.azurite/
+
+# ===== 秘密情報（ローカルは dotnet user-secrets を使う。ファイルに書かない） =====
+.env
+.env.*
+*.pfx
+*.pem
+*.key
+
+# ===== 分析（自分の PC だけ） =====
+analysis/data/
+.ipynb_checkpoints/
+.venv/
+__pycache__/
+
+# ===== ユーザーごとのファイル =====
+.claude/settings.local.json
+.idea/
+*.swp
+.DS_Store
+Thumbs.db

@@ -1,0 +1,17 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/VerdyForecast.Api/VerdyForecast.Api.csproj" />
+    <Project Path="src/VerdyForecast.Application/VerdyForecast.Application.csproj" />
+    <Project Path="src/VerdyForecast.Domain/VerdyForecast.Domain.csproj" />
+    <Project Path="src/VerdyForecast.Functions/VerdyForecast.Functions.csproj" />
+    <Project Path="src/VerdyForecast.Infrastructure/VerdyForecast.Infrastructure.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/VerdyForecast.Api.IntegrationTests/VerdyForecast.Api.IntegrationTests.csproj" />
+    <Project Path="tests/VerdyForecast.Application.Tests/VerdyForecast.Application.Tests.csproj" />
+    <Project Path="tests/VerdyForecast.ArchitectureTests/VerdyForecast.ArchitectureTests.csproj" />
+    <Project Path="tests/VerdyForecast.Domain.Tests/VerdyForecast.Domain.Tests.csproj" />
+    <Project Path="tests/VerdyForecast.Functions.IntegrationTests/VerdyForecast.Functions.IntegrationTests.csproj" />
+    <Project Path="tests/VerdyForecast.Infrastructure.IntegrationTests/VerdyForecast.Infrastructure.IntegrationTests.csproj" />
+  </Folder>
+</Solution>

@@ -1,0 +1,23 @@
+<Project>
+  <!-- すべてのプロジェクトに共通の設定。個別の csproj には、そのプロジェクトだけの設定を書く。 -->
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+
+    <!-- 警告はエラーとして扱う（完了の定義: 警告0件） -->
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+    <AnalysisLevel>latest-recommended</AnalysisLevel>
+    <EnforceCodeStyleInBuild>true</EnforceCodeStyleInBuild>
+
+    <!-- 不要な using（IDE0005）をビルドで検出するために必要。XML コメントがない警告（CS1591）は出さない -->
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <NoWarn>$(NoWarn);CS1591</NoWarn>
+
+    <!-- サプライチェーン（security.md の A03）: ロックファイルと、推移的な依存も含めた脆弱性のチェック -->
+    <RestorePackagesWithLockFile>true</RestorePackagesWithLockFile>
+    <NuGetAudit>true</NuGetAudit>
+    <NuGetAuditMode>all</NuGetAuditMode>
+    <NuGetAuditLevel>low</NuGetAuditLevel>
+  </PropertyGroup>
+</Project>

@@ -367,6 +367,7 @@
 - バージョンは、入れるときに最新の安定版（LTS があるものは LTS 版）を確認する。
 - 秘密情報は `dotnet user-secrets` に入れる。`.env` ファイルやメモ帳に書かない。
 - Azure CLI は、自分が使うときだけ `az login` して、使い終わったら `az logout` する。
+- Windows の Smart App Control（スマート アプリ コントロール）はオフにする。オンのままだと、ローカルでビルドした xUnit v3 のテスト用 exe や一部のパッケージの DLL がブロックされて、`dotnet test` が動かない（1-4 で確認）。Defender のウイルス対策と評価ベースの保護は、オンのままにする。
 
 ## 付録 B: Claude Code の権限ルール（`.claude/settings.json`）
 
