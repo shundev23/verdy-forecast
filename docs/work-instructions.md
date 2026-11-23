@@ -1,0 +1,407 @@
+# verdy-forecast 作業指示書
+
+- 版: 0.2（下書き。担当の分け方を追加）
+- 作成日: 2026-11-23
+- 関連: 開発用スキル `.claude/skills/verdy-forecast-dev/`、評価手順書 `docs/evaluation-procedure.md`
+
+## 1. この文書について
+
+- 東京ヴェルディの次の試合を分析する個人用Webアプリ「verdy-forecast」を、VS Code の Claude Code で作るための手順書。
+- 作業は Phase 0〜9 に分けて、さらに番号付きのステップ（例: 2-3）に分けてある。Claude Code には1ステップずつ渡す。
+- 「要決定」と書いてあるものは、そのステップに入る前に壁打ちで決める。決めたら、この文書の該当箇所を更新する。
+- 各ステップの「完了条件」をすべて満たしたら、次に進む。
+
+### 担当の分け方
+
+| 担当 | やること |
+|---|---|
+| 自分 | Azure ポータルでの操作、Azure CLI の実行、Entra ID の設定、GitHub と Azure DevOps の画面での設定、秘密情報の入力、PR のマージ、本番デプロイの承認、画面での動作確認 |
+| Claude Code | コード、テスト、Bicep、パイプラインの定義（YAML）、ドキュメントの下書きを書く。自分の PC の中だけで動くビルド・テスト・検査を実行する。「自分」の作業の手順とチェックリストを作る |
+| パイプライン | 自分が承認したあとに、Azure DevOps が自動で行う作業（CI、what-if、デプロイ、スモークテスト、ZAP のベースラインスキャン） |
+
+### Azure を操作するときのルール
+
+- Azure を変更するのは「自分（ポータルか Azure CLI）」と「承認したあとのパイプライン」だけ。Claude Code には Azure を操作させない。
+- Azure CLI は自分が使うときだけログインして、使い終わったら `az logout` する。ログインしたままにしておくと、同じ PC で動く Claude Code からも使えてしまうため。
+- Claude Code の権限ルール（`.claude/settings.json`、付録 B）で、`az` などのコマンドと、ログイン情報や秘密情報の保存場所の読み取りを禁止する。ただし、このルールはコマンドの文字列で判定するだけなので、上の2つの運用とセットで使う。
+- ローカルの開発とテストでは Azure のサービスに接続しない（SQL と Storage は Docker、AI Language は偽物の実装）。
+
+### Claude Code への指示の例
+
+```text
+/verdy-forecast-dev 作業指示書の 1-2 をやって。最初に方針を箇条書きで出して、OK が出てから進めて。
+```
+
+```text
+/verdy-forecast-dev 2-1 の要決定について、選択肢と推奨を出して。まだコードは書かないで。
+```
+
+```text
+/verdy-forecast-dev 8-4 は担当が自分やから、ポータルでの手順をチェックリストにして。
+```
+
+```text
+/verdy-forecast-dev 今の差分をレビューして。スキルのチェックリストと security.md に照らして、問題を重要な順に挙げて。
+```
+
+## 2. 決定事項
+
+| 項目 | 決めたこと |
+|---|---|
+| アプリ | 東京ヴェルディの次の試合の、勝ち・引き分け・負けの確率と予想スコアを出して可視化する。試合後は自分の視点を記録して、学習データにする |
+| 名前 | verdy-forecast（フォルダは `C:\Users\mrnis\dev\verdy-forecast`） |
+| 使う人 | 自分1人だけ（個人用）。インターネットに公開するが、ログインできるのは自分だけ |
+| 予算 | できるだけ0円。上限は月1,000円 |
+| 技術 | C#、.NET 10（LTS）、TypeScript、React（Vite）、Azure、VS Code＋Claude Code |
+| アーキテクチャ | 本体（API）はクリーンアーキテクチャ。試合後の処理の流れはイベント駆動（Azure Functions＋Storage のキュー） |
+| 画面と API の置き場所 | App Service の無料プラン（F1、Linux）に1つにまとめる。React のビルド結果は ASP.NET Core から配信する |
+| ログイン | BFF 方式。Entra ID で OpenID Connect。ブラウザにはトークンを渡さず、セッションの Cookie だけを持たせる。自分専用のユーザー1人だけが入れて、MFA は必須 |
+| 試合後の処理 | Azure Functions（Flex Consumption）と Storage のキュー |
+| データの箱 | Azure SQL（無料枠）が本体。Blob に取得データの原本と学習用のスナップショット。分析は自分の PC の VS Code＋Jupyter。Azure Machine Learning は v3 でお試し |
+| 秘密情報 | API キーは Key Vault。Azure のサービスにはマネージド ID で接続する |
+| Azure の操作 | Azure を変更するのは、自分（ポータルか Azure CLI）と、承認したあとのパイプラインだけ。Claude Code は Azure を操作しない |
+| 試合結果の取得 | 全チームの試合結果は自動で取る（API-Football の無料プラン、だめなら Wikipedia） |
+| ヴェルディの詳細データ | スタッツと選手の数字は、Jリーグ公式サイトを見て手で入力する（精度を優先） |
+| 使わないデータ | X、FBref（規約で予測モデルへの利用が禁止）、Jリーグ公式サイトの自動取得 |
+| 試合後の入力 | 採点と戦術タグは「AI が下書きして自分が直す」半自動。MVP は採点から自動（変更もできる）。メモは手入力 |
+| 試合前の予想 | 手入力。3択（勝ち・分け・負け）と予想スコアは必須、％は任意。モデルの予想を見る前に入れる。キックオフでロックする |
+| 予測の方法（v1） | Elo レーティングでチームの強さを出し、期待得点に直して、ポアソン分布で予想スコアの分布を出す。勝ち・分け・負けの確率は、スコアの分布から計算する（数字が食い違わないように） |
+| テスト | xUnit v3（Shouldly、NSubstitute）、ArchUnitNET、WebApplicationFactory、Testcontainers（SQL Server、Azurite）、Vitest（React Testing Library、MSW）、Playwright、Stryker.NET |
+| セキュリティのチェック | CodeQL、ZAP、Dependabot、NuGetAudit、npm audit、CycloneDX（SBOM）、GitHub のシークレットスキャン（プッシュ保護）、PSRule for Azure、Defender for Cloud（無料の部分） |
+| リポジトリ | GitHub の公開リポジトリ |
+| CI/CD | Azure DevOps Pipelines（非公開プロジェクト、無料枠は月1,800分）。Azure へのデプロイはワークロード ID フェデレーション（シークレットを置かない） |
+| リージョン | 東日本（Japan East） |
+| 進め方 | 壁打ちしながら、1ステップずつ進める |
+
+## 3. v1 でやらないこと
+
+- X、FBref、Jリーグ公式サイトからの自動取得
+- J2・J3、ヴェルディ以外のチームを中心にした分析
+- 選手の活躍の予想、相手の戦術タグ、先制したときの勝率や得点の時間帯（v2）
+- 自分の採点やタグを予測の材料にする検証、Azure Machine Learning（v3）
+- 生成AI（Azure OpenAI など）
+- 独自ドメイン、複数のユーザー
+
+## 4. ロードマップ
+
+| 版 | 中身 |
+|---|---|
+| v1 | 次の試合の勝ち・分け・負けの確率と予想スコア、直近5試合の調子、相手との過去の対戦成績、試合前の自分の予想、試合後のレビュー（スタッツ、採点、MVP、タグ、メモ）、モデルと自分の答え合わせ |
+| v2 | 選手のキーマン候補、相手の戦術タグ、先制したときの勝率、得点の時間帯 |
+| v3 | 自分の採点やタグを予測に入れて、精度が上がるかを検証する。モデルと自分の予想を混ぜる比率を学習する（アンサンブル）。Azure Machine Learning を期間を決めて試す |
+
+## 5. 要決定の一覧
+
+決めるのは自分。Claude Code は選択肢と推奨を出す。
+
+| No | 決めること | 決めるタイミング |
+|---|---|---|
+| D1 | 試合結果の取得元（API-Football の無料プランで今シーズンの J1 が取れるか） | 0-9 |
+| D2 | App Service F1 でマネージド ID が使えるか（使えなければ Container Apps に切り替えるか。切り替える場合は、Container Registry を使わずにイメージを置く場所も決める） | 0-4 |
+| D3 | Flex Consumption が東日本で使えるか（使えなければ近いリージョンにするか） | 0-3 |
+| D4 | Elo の初期値、K 値、ホームの補正、昇格チームの初期値 | 2-1 |
+| D5 | Elo の差から期待得点に直す方法（過去のシーズンの結果で係数を決める方法） | 2-1 |
+| D6 | 採点の範囲と刻み（例: 1.0〜10.0 の 0.5 刻み）、参考点の計算ルール | 2-1 |
+| D7 | MVP が同点のときの決め方 | 2-1 |
+| D8 | ％を入れなかった予想を確率に直すルール（例: 選んだ結果に60％、残りに20％ずつ） | 2-1 |
+| D9 | 戦術タグの最初のリスト（良かった点・悪かった点） | 3-2 |
+| D10 | メモの最大文字数、スコアの上限 | 3-3 |
+| D11 | セッションの有効期限、Cookie の SameSite を Strict にするか Lax にするか | 5-3 |
+| D12 | グラフのライブラリ | 6-3 |
+| D13 | 各画面の細かいレイアウトと操作 | 6-3（画面ごとに壁打ち） |
+| D14 | 終わった試合を確認しに行くタイマーの間隔 | 7-2 |
+
+## 6. 画面一覧（v1、仮）
+
+細かいレイアウトは、6-3 で画面ごとに壁打ちして決める。
+
+| No | 画面 | 主な中身 |
+|---|---|---|
+| S1 | ホーム（次の試合） | 対戦相手、日時、ホームかアウェイか。自分の予想を入れたあとに、モデルの勝ち・分け・負けの確率と、予想スコアの上位を表示する。直近5試合の調子、相手との過去の対戦成績 |
+| S2 | 試合前の予想 | 3択（ヴェルディから見た勝ち・分け・負け）と予想スコア（必須）、％（任意）。キックオフ後は見るだけ |
+| S3 | 試合後のレビュー | ヴェルディのスタッツ、出場選手、採点（参考点つき）、MVP（自動、変更可）、戦術タグ（AI の候補から選ぶ）、メモ |
+| S4 | 答え合わせ | モデルと自分の予想の成績（評価指標、的中数）をシーズン通しで比べる |
+| S5 | 試合一覧 | 過去の試合と、その試合の予想・レビュー |
+| S6 | マスタ管理 | 選手名簿、戦術タグの一覧 |
+| S7 | データの状況 | 最後にデータを取った日時、失敗の有無、無料枠の使用状況 |
+
+- 自分の予想は「ヴェルディから見た勝ち・分け・負け」で入れる。モデルの予想（ホーム勝ち・引き分け・アウェイ勝ち）は、画面ではヴェルディから見た形に直して表示する。
+
+## 7. 主なデータ（v1、仮）
+
+| テーブル | 中身 |
+|---|---|
+| Teams | チーム |
+| Players | ヴェルディの選手名簿 |
+| Matches | 試合（シーズン、キックオフ日時（UTC）、ホーム、アウェイ、スコア、状態、取得元、取得日時） |
+| TeamRatings | チームごとの Elo（いつ時点の値か） |
+| Forecasts | モデルの予想（作った日時、モデルのバージョン、3つの確率、スコアの分布、材料に使ったデータの時点） |
+| MyPredictions | 自分の予想（3択、予想スコア、任意の％、入力日時、ロック日時） |
+| MatchStats | ヴェルディの試合のスタッツ（手入力） |
+| PlayerAppearances | 出場選手と、得点やアシストなどの数字（手入力） |
+| PlayerRatings | 採点（参考点と最終点） |
+| MatchReviews | MVP（自動か手で変えたか）、メモ |
+| Tags と ReviewTags | 戦術タグのマスタと、試合ごとのタグ（良い・悪い、AI の候補か手入力か） |
+| Evaluations | 試合ごとの評価指標（モデル、自分） |
+| RawDataRecords | 取得データの原本の場所と SHA-256 |
+| ProcessedMessages | 処理済みのメッセージ（二重処理の防止） |
+| AuditLogs | 予想やレビューの変更の記録（メモの本文は入れない） |
+
+- 時刻はすべて UTC で保存して、画面で日本時間に直す。
+- シーズンは秋春制に合わせて「2026-27」のような文字列で持つ。
+
+## 8. 作業の手順
+
+### Phase 0: 準備（コードを書く前）
+
+ほぼ全部が自分の作業。Claude Code には、手順の確認とチェックリスト作りを手伝ってもらう。Azure のリソースは、ここでは確認のためのもの以外は作らない。
+
+| No | 担当 | やること |
+|---|---|---|
+| 0-1 | 自分 | **予算アラートを最初に作る**。Azure ポータルの Cost Management で、月1,000円の予算を作り、50%・80%・100%でメールが届くようにする |
+| 0-2 | 自分 | リソースグループ `rg-verdy-forecast` を東日本に作る |
+| 0-3 | 自分 | Flex Consumption が東日本で使えるか確認する（Azure CLI で `az functionapp list-flexconsumption-locations -o table`）。結果を D3 に記録する |
+| 0-4 | 自分 | App Service F1 でマネージド ID が使えるか確認する。ポータルで F1 の Web アプリを試しに作り、システム割り当てのマネージド ID を有効にできるかを見る。確認したら削除する。結果を D2 に記録する |
+| 0-5 | 自分 | Entra ID に、このアプリ専用のユーザー（クラウド専用）を1人作る。セキュリティの既定値群が有効で、そのユーザーに MFA が求められることを確認する |
+| 0-6 | 自分 | GitHub に公開リポジトリ `verdy-forecast` を空で作る（README なし）。Dependabot のアラートとセキュリティ更新、シークレットスキャンとプッシュ保護を有効にする。main を守るルールセットと CodeQL は、最初の push のあと（1-1、1-7）で設定する |
+| 0-7 | 自分 | Azure DevOps に組織と非公開プロジェクトを作る。課金の設定で Azure のサブスクリプションを紐づける（無料枠の月1,800分が自動で付く）。GitHub とつなぐ |
+| 0-8 | 自分 | 自分の PC に開発環境を入れる（付録 A）。Azure CLI を使ったら、最後に `az logout` する |
+| 0-9 | 自分 | API-Football に無料登録して、今シーズンの J1 の試合結果が取れるか確認する。結果を D1 に記録する。API キーは、4-6 で `dotnet user-secrets` に入れるまで、パスワード管理ツールなどの安全な場所に保管する。チャットやファイルには貼らない |
+| 0-10 | 自分 | Claude Code の権限ルール `.claude/settings.json`（付録 B）が置かれていることを確認する。VS Code の Claude Code で `/permissions` を開いて、ルールが読み込まれていることを確かめる |
+
+完了条件:
+
+- 予算アラートができていて、通知先のメールアドレスが正しい
+- D1、D2、D3 の結果が記録されている
+- GitHub と Azure DevOps の設定が終わっている
+- `dotnet --version` が 10.x、`node --version` が LTS 版、`docker version` と `az version` が動く
+- Azure CLI からログアウトしている
+
+### Phase 1: リポジトリの骨組み
+
+| No | 担当 | やること |
+|---|---|---|
+| 1-1 | 自分 | `C:\Users\mrnis\dev\verdy-forecast` を Git のリポジトリにする（`git init -b main`）。GitHub の空のリポジトリを `origin` に登録して、`docs` と `.claude` を最初のコミットとして push する。push したら、ルールセットで main への直接の push を禁止して、PR を必須にする |
+| 1-2 | Claude Code | スキルの architecture.md のフォルダ構成で、ソリューションとプロジェクトを作る。プロジェクトの参照は依存ルールのとおりにする |
+| 1-3 | Claude Code | 共通の設定ファイルを作る（`Directory.Build.props`、`Directory.Packages.props`、`global.json`、`.editorconfig`、`.gitignore`）。`.gitignore` には `analysis/data/`、`local.settings.json`、ユーザーごとのファイルを入れる |
+| 1-4 | Claude Code | 依存ルールのテストを作る（ArchUnitNET）。わざと違反するコードを入れるとテストが落ちることを確かめてから、違反を消す |
+| 1-5 | Claude Code が下書き、自分が確認 | 脅威モデル `docs/threat-model.md` を書く。守るもの（自分の記録、ログイン、Azure の費用）、入口（画面、API、タイマー、キュー、外部 API）、STRIDE で洗い出した脅威、その対策とテストの対応表 |
+| 1-6 | Claude Code | CI の定義 `pipelines/ci.yml`（`dotnet restore --locked-mode`、ビルド、テスト）と `.github/dependabot.yml` を作る。NuGetAudit の警告もエラーとして扱われるようにする |
+| 1-7 | 自分 | Azure DevOps で `pipelines/ci.yml` からパイプラインを作る。フォークからの PR では、シークレットを渡さず、チームメンバーのコメントがないとビルドしない設定にする。GitHub で CodeQL（既定のセットアップ）を有効にする |
+
+`Directory.Build.props` の例:
+
+```xml
+<Project>
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+    <AnalysisLevel>latest-recommended</AnalysisLevel>
+    <EnforceCodeStyleInBuild>true</EnforceCodeStyleInBuild>
+    <RestorePackagesWithLockFile>true</RestorePackagesWithLockFile>
+    <NuGetAudit>true</NuGetAudit>
+    <NuGetAuditMode>all</NuGetAuditMode>
+    <NuGetAuditLevel>low</NuGetAuditLevel>
+  </PropertyGroup>
+</Project>
+```
+
+完了条件:
+
+- `dotnet build` で警告0件、`dotnet test` が成功する
+- 依存ルールのテストが、違反を入れると落ちる
+- PR を作ると Azure DevOps の CI が動いて成功する
+- main に直接 push できない
+- 脅威モデルができている
+
+### Phase 2: ドメイン（ルールと計算）
+
+| No | 担当 | やること |
+|---|---|---|
+| 2-1 | 自分と Claude Code（壁打ち） | D4〜D8 を決める。Claude Code が選択肢と推奨を出して、自分が決める。コードはまだ書かない |
+| 2-2 | Claude Code | エンティティと値オブジェクトを作る（試合、チーム、選手、キックオフ日時、スコア、採点、自分の予想、試合後のレビュー、タグ） |
+| 2-3 | Claude Code | 予想のロック。キックオフ時刻以降は、変更も削除もできない（判定は `TimeProvider` の時刻で行う） |
+| 2-4 | Claude Code | 採点の参考点の計算と、MVP の自動決定（同点のときは D7 のルール） |
+| 2-5 | Claude Code | Elo レーティング（ホームの補正を含む） |
+| 2-6 | Claude Code | 期待得点、スコアの分布（ポアソン分布）、勝ち・分け・負けの確率。確率はスコアの分布を合計して出す |
+| 2-7 | Claude Code | 評価指標（RPS、Brier スコア、的中）。定義は評価手順書のとおり |
+| 2-8 | Claude Code | 予測の材料を「キックオフ時点で分かっていたデータ」だけにする仕組みと、データリーケージのテスト（スキルの testing.md の手順） |
+
+完了条件:
+
+- Domain の単体テストが成功する（キックオフの1秒前・ちょうど・1秒後、同点、0-0、データ0件を含む）
+- データリーケージのテストが成功する
+- Stryker.NET のミューテーションスコアが目安（評価手順書）を満たす
+
+### Phase 3: アプリケーション（ユースケース）
+
+| No | 担当 | やること |
+|---|---|---|
+| 3-1 | Claude Code | ポート（インターフェース）を作る（スキルの architecture.md の表） |
+| 3-2 | Claude Code（D9 は自分が決める） | ユースケースを作る。次の試合の予想を出す、自分の予想を登録する、試合後のレビューを登録する、戦術タグの候補を出す、試合結果を取り込む、レーティングを計算し直す、答え合わせをする、成績のまとめを出す |
+| 3-3 | Claude Code（D10 は自分が決める） | 入力の検証を作る |
+
+完了条件:
+
+- ユースケースの単体テストが、フェイクを使って成功する
+- 依存ルールのテストが成功する（Application が Infrastructure を参照していない）
+
+### Phase 4: インフラストラクチャ
+
+ローカルの開発とテストでは、Azure のサービスに接続しない。SQL と Storage は Docker を使い、AI Language は偽物の実装に差し替える。
+
+| No | 担当 | やること |
+|---|---|---|
+| 4-1 | Claude Code | EF Core と SQL Server。ローカルは Docker の SQL Server を使う。マイグレーションを作る。時刻は UTC で保存する |
+| 4-2 | Claude Code | Blob に原本を保存する仕組み（`raw/{取得元}/{yyyy}/{MM}/{dd}/{ID}.json`、上書きしない）と、SHA-256 の記録。学習用のスナップショットを CSV で書き出す仕組み。ローカルは Azurite を使う |
+| 4-3 | Claude Code | API-Football のクライアント。許可リストのホストだけ、タイムアウトとリトライ、受け取ったデータの形式の検証、1日100回の上限を数えて止める。テストでは本物の API を呼ばず、作り物の JSON を使う |
+| 4-4 | Claude Code | 戦術タグの候補（Azure AI Language）。返ってきた候補は、マスタにあるタグだけを採用する。AI Language が使えないときは、候補なしで動く。ローカルでは偽物の実装を使う |
+| 4-5 | Claude Code | 設定と秘密情報の読み込みの仕組み。ローカルは `dotnet user-secrets`、Azure は Key Vault 参照とマネージド ID |
+| 4-6 | 自分 | API-Football の API キーを `dotnet user-secrets set` でローカルに入れる。Claude Code には値を渡さない |
+
+完了条件:
+
+- Testcontainers（SQL Server、Azurite）を使った結合テストが成功する
+- API-Football を止めた（つながらない）状態のテストで、前回のデータが使われて、エラーで落ちない
+
+### Phase 5: API（BFF とエンドポイント）
+
+| No | 担当 | やること |
+|---|---|---|
+| 5-1 | Claude Code | Entra ID のアプリ登録で設定する項目の一覧を作る（本番用とローカル開発用、リダイレクト URI、割り当て、ログアウトの URL など） |
+| 5-2 | 自分 | 5-1 の一覧に沿って、ポータルで Entra ID にアプリを登録する。本番用とローカル開発用は分ける。シングルテナント、エンタープライズアプリケーションで「割り当てが必要」をオンにして、自分専用のユーザーだけを割り当てる。ローカル用のシークレットは `dotnet user-secrets` に入れて、有効期限を短くする。本番用のクライアント認証（マネージド ID のフェデレーション資格情報）は、最初のデプロイのあと（8-8）で設定する |
+| 5-3 | Claude Code | ログイン、ログアウト、セッションの Cookie（スキルの security.md の A07）。API は、未ログインならリダイレクトせずに 401 を返す。D11 は、実際に動かして自分が決める |
+| 5-4 | Claude Code | CSRF 用のカスタムヘッダー（`X-CSRF: 1`）の確認、CORS なし、セキュリティヘッダー（CSP を含む）、HSTS、共通の例外ハンドラー（ProblemDetails）、書き込み系のレート制限 |
+| 5-5 | Claude Code | API のエンドポイントを作る（Minimal API）。次の試合、自分の予想、試合後のレビュー、タグ候補、試合一覧、成績、マスタ、データの状況。OpenAPI は開発環境だけで出す |
+| 5-6 | Claude Code | テスト用の偽ログイン（`Testing` 環境だけ）と、それ以外の環境で有効になっていたら起動時に止める仕組み |
+| 5-7 | 自分 | ローカルで、自分専用のユーザーでログインできて、MFA が求められることを確かめる |
+
+完了条件:
+
+- スキルの testing.md の「セキュリティのテスト」が全部成功する
+- 5-7 の確認ができている
+
+### Phase 6: 画面
+
+| No | 担当 | やること |
+|---|---|---|
+| 6-1 | Claude Code | `src/web` に Vite＋React＋TypeScript を用意する。開発中は Vite の開発サーバーから `/api` と `/bff` を API に転送して、同じオリジンで動かす。本番のビルド結果は Api から配信する。CI に `npm ci`、`npm run test`、`npm audit` を足す |
+| 6-2 | Claude Code | API を呼ぶ共通の fetch ラッパー（`X-CSRF` ヘッダーを付ける、401 ならログインへ移動、エラーの表示） |
+| 6-3 | 自分と Claude Code（壁打ち）→ Claude Code | 画面 S1〜S7 を、**画面ごとに壁打ちして** D12 と D13 を決めてから作る。S1 では、自分の予想が入るまでモデルの予想を見せない |
+| 6-4 | Claude Code | Vitest（MSW で API の応答を作る）と、Playwright の E2E（`Testing` 環境、偽ログイン） |
+| 6-5 | 自分 | 画面を実際に触って確かめる。GitHub の CodeQL の対象に TypeScript が入っているか確認する |
+
+完了条件:
+
+- Vitest と Playwright のテストが成功する
+- ブラウザの開発者ツールで、CSP の違反が出ていない
+- localStorage と sessionStorage にトークンが入っていない
+
+### Phase 7: 試合後の処理（Azure Functions、イベント駆動）
+
+| No | 担当 | やること |
+|---|---|---|
+| 7-1 | Claude Code | Functions のプロジェクト（isolated worker、.NET 10）。ストレージやキューへの接続はマネージド ID（接続文字列を使わない）。ローカルは Azurite を使う |
+| 7-2 | Claude Code（D14 は自分が決める） | タイマーで終わった試合を探して、試合ごとに「試合が終わった」メッセージをキューに送る |
+| 7-3 | Claude Code | キューの処理: 結果の取り込み → レーティングと予想の計算し直し → 答え合わせ。処理ごとに次のメッセージを送る |
+| 7-4 | Claude Code | 同じメッセージの二重処理の防止（処理済みの ID を記録）、リトライ、ポイズンキュー、ポイズンキューに入ったときのログ |
+
+完了条件:
+
+- Azurite を使った結合テストが成功する（同じメッセージを2回送っても、計算が1回分だけ）
+- 処理の途中でわざと失敗させても、DB に中途半端な状態が残らない
+
+### Phase 8: インフラのコード化と、デプロイのパイプライン
+
+| No | 担当 | やること |
+|---|---|---|
+| 8-1 | Claude Code | Bicep で、スキルの azure-cost.md の許可リストにあるリソースだけを書く。パラメーターファイルにシークレットやメールアドレスを入れない |
+| 8-2 | Claude Code | PSRule for Azure で Bicep をチェックして、指摘を直すか、直さない理由を記録する |
+| 8-3 | Claude Code | `pipelines/cd.yml` を書く。ステージは「インフラ（what-if → デプロイ）」と「アプリ（マイグレーション → API → Functions → スモークテスト → ZAP のベースラインスキャン）」に分けて、どちらも承認が必要な Environment に向ける |
+| 8-4 | 自分 | Azure DevOps に、ワークロード ID フェデレーションのサービス接続を作る（権限の範囲はリソースグループだけ）。Environment `production` を作って、承認を必須にする |
+| 8-5 | 自分（承認）→ パイプライン | `pipelines/cd.yml` からパイプラインを作って実行する。インフラのステージで what-if の結果を確認してから承認する |
+| 8-6 | 自分 | ポータルで、Key Vault に API-Football の API キーを登録する |
+| 8-7 | Claude Code が SQL を用意、自分が実行 | ポータルのクエリエディターで、SQL の権限を付ける。API と Functions のマネージド ID には読み取りと書き込みだけ。パイプラインの ID には、マイグレーションに必要な権限だけ |
+| 8-8 | 自分 | 本番用のアプリ登録に、App Service のマネージド ID をフェデレーション資格情報として登録する |
+| 8-9 | 自分（承認）→ パイプライン | アプリのステージを承認して、デプロイする |
+| 8-10 | Claude Code | CI に、SBOM の作成（CycloneDX）と PSRule for Azure を足す |
+
+完了条件:
+
+- PR で CI が成功し、main にマージすると、承認のあとに本番へデプロイされる
+- Azure DevOps と GitHub に、Azure のシークレットが1つも保存されていない
+- what-if の結果に、許可リストにないリソースが出てこない
+
+### Phase 9: 公開と確認
+
+| No | 担当 | やること |
+|---|---|---|
+| 9-1 | 自分 | 本番で、自分専用のユーザーでログインできて、MFA が求められることを確認する。Entra のサインインログでも確認する |
+| 9-2 | 自分 | ポータルで、アラートの通知先（アクショングループ、メール）と、Application Insights のアラートを作る（例外の急増、401 と 403 の急増、ポイズンキュー、外部 API の連続した失敗）。メールアドレスはリポジトリに入れない |
+| 9-3 | 自分 | Defender for Cloud のセキュアスコアと推奨事項を確認する |
+| 9-4 | 自分と Claude Code | 評価手順書の「リリース前のチェック」を行う。Claude Code はローカルでの検査と記録の下書き、自分はポータルや画面での確認。結果を `docs/evaluation-records/` に記録する |
+| 9-5 | 自分 | 1週間使ってみて、Cost Management で費用を確認する |
+
+完了条件:
+
+- 評価手順書の合格基準を全部満たしている
+- 1週間の費用が、月1,000円のペースを下回っている
+
+## 付録 A: ローカル開発環境
+
+| ツール | 用途 |
+|---|---|
+| VS Code と Claude Code の拡張機能 | 開発 |
+| C# Dev Kit（VS Code の拡張機能） | C# の開発とテストの実行 |
+| .NET 10 SDK | API、Functions、テスト |
+| Node.js（LTS 版） | 画面、Vitest、Playwright |
+| Docker Desktop（WSL 2） | Testcontainers、ローカルの SQL Server と Azurite。個人利用は無料 |
+| Azure CLI と Bicep | Azure の確認（自分だけが使う） |
+| Azure Functions Core Tools | Functions のローカル実行 |
+| Git | バージョン管理 |
+| Stryker.NET（`dotnet tool`） | ミューテーションテスト |
+| Python と Jupyter（任意） | `analysis/` での分析 |
+
+- バージョンは、入れるときに最新の安定版（LTS があるものは LTS 版）を確認する。
+- 秘密情報は `dotnet user-secrets` に入れる。`.env` ファイルやメモ帳に書かない。
+- Azure CLI は、自分が使うときだけ `az login` して、使い終わったら `az logout` する。
+
+## 付録 B: Claude Code の権限ルール（`.claude/settings.json`）
+
+リポジトリにコミットして使う。`deny` は禁止、`ask` は毎回確認が出る。
+
+```json
+{
+  "permissions": {
+    "deny": [
+      "Bash(az *)",
+      "PowerShell(az *)",
+      "Bash(azd *)",
+      "PowerShell(azd *)",
+      "Bash(func azure *)",
+      "PowerShell(func azure *)",
+      "PowerShell(Connect-AzAccount *)",
+      "Bash(dotnet user-secrets *)",
+      "PowerShell(dotnet user-secrets *)",
+      "Read(~/.azure/**)",
+      "Read(~/AppData/Roaming/Microsoft/UserSecrets/**)"
+    ],
+    "ask": [
+      "Bash(git commit *)",
+      "PowerShell(git commit *)",
+      "Bash(git push *)",
+      "PowerShell(git push *)"
+    ],
+    "disableBypassPermissionsMode": "disable"
+  }
+}
+```
+
+- `az`、`azd`、`func azure`、`Connect-AzAccount`: Claude Code から Azure を操作させない。
+- `dotnet user-secrets`: 秘密情報の一覧表示や書き換えをさせない（値は自分で入れる）。
+- `~/.azure` と `UserSecrets` の読み取り: Azure CLI のログイン情報と、ローカルの秘密情報を読ませない。
+- `git commit` と `git push`: 実行する前に毎回確認する。
+- `disableBypassPermissionsMode`: 確認をすべて飛ばすモードを使えないようにする。
+- このルールはコマンドの文字列で判定するだけなので、`sh -c` のような別の書き方では止まらないことがある。だから「Azure CLI にログインしたままにしない」「Azure の変更はパイプラインの承認を通す」とセットで使う。

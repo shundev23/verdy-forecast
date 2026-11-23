@@ -1,0 +1,24 @@
+{
+  "permissions": {
+    "deny": [
+      "Bash(az *)",
+      "PowerShell(az *)",
+      "Bash(azd *)",
+      "PowerShell(azd *)",
+      "Bash(func azure *)",
+      "PowerShell(func azure *)",
+      "PowerShell(Connect-AzAccount *)",
+      "Bash(dotnet user-secrets *)",
+      "PowerShell(dotnet user-secrets *)",
+      "Read(~/.azure/**)",
+      "Read(~/AppData/Roaming/Microsoft/UserSecrets/**)"
+    ],
+    "ask": [
+      "Bash(git commit *)",
+      "PowerShell(git commit *)",
+      "Bash(git push *)",
+      "PowerShell(git push *)"
+    ],
+    "disableBypassPermissionsMode": "disable"
+  }
+}
