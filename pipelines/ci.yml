@@ -1,0 +1,74 @@
+# PR ごとの CI（作業指示書 1-6）。Azure DevOps Pipelines で使う。
+# - パイプラインの作成と、フォークからの PR の設定（シークレットを渡さない、メンバーのコメントがないとビルドしない）は、
+#   1-7 で自分が Azure DevOps の画面で行う。この YAML には、シークレットもサービス接続も使わない。
+# - タスクは Azure DevOps の仕様上、メジャーバージョンまでしか固定できないので、@2 で固定する。
+# - 無料枠（月1,800分）を節約するため、NuGet のパッケージをキャッシュして、ジョブにタイムアウトを付ける。
+
+trigger:
+  batch: true
+  branches:
+    include:
+      - main
+
+pr:
+  branches:
+    include:
+      - main
+
+pool:
+  vmImage: ubuntu-24.04
+
+variables:
+  buildConfiguration: Release
+  # テレメトリーを送らない（.NET CLI と Microsoft.Testing.Platform）
+  DOTNET_CLI_TELEMETRY_OPTOUT: 'true'
+  TESTINGPLATFORM_TELEMETRY_OPTOUT: 'true'
+  DOTNET_NOLOGO: 'true'
+  NUGET_PACKAGES: $(Pipeline.Workspace)/.nuget/packages
+
+jobs:
+  - job: build_and_test
+    displayName: ビルドとテスト
+    timeoutInMinutes: 20
+    steps:
+      - checkout: self
+        fetchDepth: 1
+        persistCredentials: false
+
+      # global.json の「10.0.400 以上の 10.0 系」を満たす、10.0 系の最新の SDK を入れる
+      - task: UseDotNet@2
+        displayName: .NET SDK 10.0 を入れる
+        inputs:
+          packageType: sdk
+          version: 10.0.x
+
+      - task: Cache@2
+        displayName: NuGet のパッケージをキャッシュ
+        inputs:
+          key: 'nuget | "$(Agent.OS)" | **/packages.lock.json,!**/bin/**,!**/obj/**'
+          restoreKeys: |
+            nuget | "$(Agent.OS)"
+          path: $(NUGET_PACKAGES)
+
+      # ロックファイルと食い違うと失敗する。脆弱性の警告（NuGetAudit）も、Directory.Build.props の設定でエラーになる
+      - script: dotnet restore VerdyForecast.slnx --locked-mode
+        displayName: 復元（ロックファイルとの照合、脆弱性のチェック）
+
+      - script: dotnet build VerdyForecast.slnx --no-restore --configuration $(buildConfiguration) -p:ContinuousIntegrationBuild=true
+        displayName: ビルド（警告はエラー）
+
+      - script: >-
+          dotnet test --solution VerdyForecast.slnx --no-build --configuration $(buildConfiguration)
+          --results-directory $(Agent.TempDirectory)/TestResults
+          --report-xunit-trx
+        displayName: テスト
+
+      - task: PublishTestResults@2
+        displayName: テスト結果を発行
+        condition: succeededOrFailed()
+        inputs:
+          testResultsFormat: VSTest
+          testResultsFiles: '**/*.trx'
+          searchFolder: $(Agent.TempDirectory)/TestResults
+          failTaskOnMissingResultsFile: true
+          testRunTitle: .NET
