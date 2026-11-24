@@ -61,6 +61,7 @@
   .meta { color: var(--muted); font-size: .9rem; }
   .note { color: var(--muted); font-size: .9rem; }
   .note.source { margin-top: 16px; }
+  h3 { font-size: 1rem; margin: 28px 0 8px; }
   code {
     font-family: "Cascadia Code", Consolas, monospace;
     font-size: .86em;
@@ -149,7 +150,7 @@
 
 <header>
   <h1>verdy-forecast 全体図</h1>
-  <p class="meta">最終更新: 2026-11-24（作業指示書 2-1 が終わった時点）</p>
+  <p class="meta">最終更新: 2026-11-24（作業指示書 2-2 が終わった時点）</p>
   <p>東京ヴェルディの次の試合について、勝ち・引き分け・負けの確率と予想スコアを出す個人用の Web アプリ。開発のステップが終わるたびに、この図を更新する。</p>
 </header>
 
@@ -174,7 +175,7 @@
           <td><span class="chip done">1-1 済</span><span class="chip done">1-2 済</span><span class="chip done">1-3 済</span><span class="chip done">1-4 済</span><span class="chip done">1-5 済</span><span class="chip done">1-6 済</span><span class="chip done">1-7 済</span></td>
           <td>—</td>
         </tr>
-        <tr><td>2</td><td>ドメイン（ルールと計算）</td><td><span class="chip done">2-1 済</span><span class="chip doing">2-2 次</span><span class="chip">2-3</span><span class="chip">2-4</span><span class="chip">2-5</span><span class="chip">2-6</span><span class="chip">2-7</span><span class="chip">2-8</span></td><td>D4〜D8 は決定済み（作業指示書 5.1）</td></tr>
+        <tr><td>2</td><td>ドメイン（ルールと計算）</td><td><span class="chip done">2-1 済</span><span class="chip done">2-2 済</span><span class="chip doing">2-3 次</span><span class="chip">2-4</span><span class="chip">2-5</span><span class="chip">2-6</span><span class="chip">2-7</span><span class="chip">2-8</span></td><td>D4〜D8 は決定済み（作業指示書 5.1）</td></tr>
         <tr><td>3</td><td>アプリケーション（ユースケース）</td><td><span class="chip">未着手</span></td><td>D9、D10</td></tr>
         <tr><td>4</td><td>インフラストラクチャ（SQL、Blob、API-Football、AI Language）</td><td><span class="chip">未着手</span></td><td>—</td></tr>
         <tr><td>5</td><td>API（BFF とエンドポイント）</td><td><span class="chip">未着手</span></td><td>D11</td></tr>
@@ -254,7 +255,7 @@
       <!-- テスト -->
       <rect class="box done" x="640" y="40" width="300" height="42" rx="8"/>
       <text class="t start" x="656" y="58">Domain.Tests</text>
-      <text class="s start" x="656" y="74">→ Domain</text>
+      <text class="s start" x="656" y="74">→ Domain（テスト177件）</text>
 
       <rect class="box done" x="640" y="90" width="300" height="42" rx="8"/>
       <text class="t start" x="656" y="108">Application.Tests</text>
@@ -283,9 +284,29 @@
     <figcaption>
       矢印は「参照する」向き。Api と Functions が Infrastructure を使ってよいのは、<code>Program.cs</code> での DI の登録だけ。
       依存ルールは ArchitectureTests で自動チェックしている（層の向き、Program 以外からの Infrastructure の利用、外部ライブラリ、現在時刻の直接の読み取り）。名前の先頭の <code>VerdyForecast.</code> は省略している。
-      src のプロジェクトはまだ中身が空。パッケージが入っているのは ArchitectureTests（xUnit v3、ArchUnitNET）だけで、ほかのテストのパッケージは、そのプロジェクトで最初のテストを書くステップで入れる（MTP では、テストが0件だと失敗扱いになるため）。
+      Domain にはエンティティと値オブジェクトがある（2-2。中身は下の表）。ほかの src のプロジェクトはまだ空。
+      パッケージが入っているのは ArchitectureTests（xUnit v3、ArchUnitNET）と Domain.Tests（xUnit v3、Shouldly）だけで、Domain 本体は外部ライブラリを使わない。ほかのテストのパッケージは、そのプロジェクトで最初のテストを書くステップで入れる（MTP では、テストが0件だと失敗扱いになるため）。
     </figcaption>
   </figure>
+
+  <h3>Domain の中身</h3>
+  <p class="note">値オブジェクトは作るときに検証するので、不正な値は作れない。想定した失敗（不正な入力）は、例外ではなく結果（Result とエラーコード）で返す。</p>
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr><th>フォルダ</th><th>主な型</th><th>中身</th><th>作ったステップ</th></tr>
+      </thead>
+      <tbody>
+        <tr><td><code>Common</code></td><td>Result、DomainError、Name</td><td>想定した失敗を返す結果の型。名前（1〜50文字）</td><td>2-2</td></tr>
+        <tr><td><code>Matches</code></td><td>Match、Season、KickoffTime、Score、TeamScore、MatchOutcome、TeamOutcome</td><td>試合（予定・延期・終了）、シーズン（「2025」と「2026-27」）、キックオフ（UTC）、90分のスコア、ホームから見た結果とチームから見た結果の変換</td><td>2-2</td></tr>
+        <tr><td><code>Teams</code></td><td>Team</td><td>チーム</td><td>2-2</td></tr>
+        <tr><td><code>Players</code></td><td>Player、ShirtNumber、Position</td><td>選手名簿（背番号 1〜99、ポジション、在籍中かどうか）</td><td>2-2</td></tr>
+        <tr><td><code>Predictions</code></td><td>MyPrediction、OutcomePercentages</td><td>自分の予想（3択、ヴェルディから見た予想スコア、任意の％）。3択とスコアの一致、％の条件（D8）を確かめる</td><td>2-2（ロックは 2-3）</td></tr>
+        <tr><td><code>Reviews</code></td><td>MatchReview、PlayerAppearance、PlayerRating、RatingScore、MvpSelection、ReviewTag</td><td>試合後のレビュー（出場の記録、採点 1.0〜10.0 の 0.5 刻み、手で選んだ MVP、タグ、メモ）</td><td>2-2（参考点と MVP の自動の決定は 2-4）</td></tr>
+        <tr><td><code>Tags</code></td><td>Tag、TagKind</td><td>戦術タグのマスタ（良い点・悪い点、使用中かどうか）</td><td>2-2</td></tr>
+      </tbody>
+    </table>
+  </div>
 </section>
 
 <!-- ============================================================ -->
@@ -468,9 +489,9 @@
         <tr><td><code>docs/threat-model.md</code></td><td>脅威モデル（守るもの、入口と信頼の境界、STRIDE の脅威32件と対策・テスト、受け入れるリスク）</td><td><span class="chip done">作成済み</span><span class="chip">確認済み（版 1.0）</span></td></tr>
         <tr><td><code>docs/evaluation-records/</code></td><td>評価の記録</td><td><span class="chip">予定 9-4</span></td></tr>
         <tr><td><code>VerdyForecast.slnx</code></td><td>ソリューション（src と tests のフォルダ分け）</td><td><span class="chip done">作成済み</span></td></tr>
-        <tr><td><code>src/VerdyForecast.*</code>（5つ）</td><td>Domain、Application、Infrastructure、Api、Functions</td><td><span class="chip done">作成済み</span><span class="chip">中身は空</span></td></tr>
+        <tr><td><code>src/VerdyForecast.*</code>（5つ）</td><td>Domain、Application、Infrastructure、Api、Functions</td><td><span class="chip done">作成済み</span><span class="chip">Domain に型あり（2-2）。ほかは空</span></td></tr>
         <tr><td><code>src/web/</code></td><td>React＋TypeScript（Vite）</td><td><span class="chip">予定 6-1</span></td></tr>
-        <tr><td><code>tests/VerdyForecast.*</code>（6つ）</td><td>.NET のテスト（単体、結合、依存ルール）</td><td><span class="chip done">作成済み</span><span class="chip">ArchitectureTests の17件だけ</span></td></tr>
+        <tr><td><code>tests/VerdyForecast.*</code>（6つ）</td><td>.NET のテスト（単体、結合、依存ルール）</td><td><span class="chip done">作成済み</span><span class="chip">194件（Domain 177、依存ルール 17）</span></td></tr>
         <tr><td><code>tests/e2e/</code></td><td>Playwright</td><td><span class="chip">予定 6-4</span></td></tr>
         <tr><td><code>Directory.Build.props</code></td><td>全プロジェクト共通の設定（.NET 10、警告をエラーに、コードスタイルをビルドで強制、ロックファイル、NuGetAudit）</td><td><span class="chip done">作成済み</span></td></tr>
         <tr><td><code>Directory.Packages.props</code></td><td>パッケージのバージョンの一元管理（推移的な依存も固定できる）。今はパッケージ0個</td><td><span class="chip done">作成済み</span></td></tr>
@@ -498,6 +519,11 @@
         <tr><th>日付</th><th>ステップ</th><th>変わったこと</th></tr>
       </thead>
       <tbody>
+        <tr>
+          <td class="nowrap">2026-11-24</td>
+          <td class="nowrap">2-2</td>
+          <td>Domain にエンティティと値オブジェクトを追加（試合、チーム、選手、キックオフ、スコア、採点、自分の予想、試合後のレビュー、タグ）。想定した失敗は結果（Result）で返す形にした。Domain.Tests に xUnit v3 と Shouldly を入れて、テスト177件を追加。</td>
+        </tr>
         <tr>
           <td class="nowrap">2026-11-24</td>
           <td class="nowrap">2-1</td>
