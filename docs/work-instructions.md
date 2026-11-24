@@ -187,7 +187,7 @@
 | 1-4 | Claude Code | 依存ルールのテストを作る（ArchUnitNET）。わざと違反するコードを入れるとテストが落ちることを確かめてから、違反を消す |
 | 1-5 | Claude Code が下書き、自分が確認 | 脅威モデル `docs/threat-model.md` を書く。守るもの（自分の記録、ログイン、Azure の費用）、入口（画面、API、タイマー、キュー、外部 API）、STRIDE で洗い出した脅威、その対策とテストの対応表 |
 | 1-6 | Claude Code | CI の定義 `pipelines/ci.yml`（`dotnet restore --locked-mode`、ビルド、テスト）と `.github/dependabot.yml` を作る。NuGetAudit の警告もエラーとして扱われるようにする |
-| 1-7 | 自分 | Azure DevOps で `pipelines/ci.yml` からパイプラインを作る。フォークからの PR では、シークレットを渡さず、チームメンバーのコメントがないとビルドしない設定にする。GitHub で CodeQL（既定のセットアップ）を有効にする |
+| 1-7 | 自分 | Azure DevOps で `pipelines/ci.yml` からパイプラインを作る。フォークからの PR はビルドしない（組織・プロジェクトの設定「Limit building pull requests from forked GitHub repositories」で「Disable building pull requests from forked repositories」を選ぶ。シークレットを渡すことも、確認していないコードをビルドすることもなくなる）。GitHub で CodeQL（既定のセットアップ）を有効にする |
 
 `Directory.Build.props` の例:
 
