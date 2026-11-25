@@ -1,4 +1,5 @@
 using VerdyForecast.Domain.Matches;
+using VerdyForecast.Domain.Players;
 
 namespace VerdyForecast.Domain.Tests.TestSupport;
 
@@ -12,5 +13,11 @@ internal static class EntityIds
     {
         typeof(Match).GetProperty(nameof(Match.Id))!.SetValue(match, new MatchId(id));
         return match;
+    }
+
+    public static Player WithId(this Player player, int id)
+    {
+        typeof(Player).GetProperty(nameof(Player.Id))!.SetValue(player, new PlayerId(id));
+        return player;
     }
 }

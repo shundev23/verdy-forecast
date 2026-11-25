@@ -27,8 +27,19 @@ internal static class Make
 
     public static ShirtNumber ShirtNumberOf(int value) => ShirtNumber.Create(value).ShouldSucceed();
 
-    public static PlayerAppearance AppearanceOf(PlayerId playerId, int minutes = 90, int goals = 0) =>
-        PlayerAppearance.Create(playerId, minutes, goals, assists: 0, yellowCards: 0, sentOff: false, ownGoals: 0).ShouldSucceed();
+    public static PlayerAppearance AppearanceOf(
+        PlayerId playerId,
+        int minutes = 90,
+        int goals = 0,
+        int assists = 0,
+        int yellowCards = 0,
+        bool sentOff = false,
+        int ownGoals = 0) =>
+        PlayerAppearance.Create(playerId, minutes, goals, assists, yellowCards, sentOff, ownGoals).ShouldSucceed();
+
+    /// <summary>ID 付きの選手（名簿の1人）。背番号を指定しなければ、ID と同じ番号にする。</summary>
+    public static Player PlayerOf(int id, Position position = Position.Midfielder, int? shirtNumber = null) =>
+        Player.Register(NameOf("選手" + id), ShirtNumberOf(shirtNumber ?? id), position).WithId(id);
 
     public static Match ScheduledMatch(TeamId homeTeamId, TeamId awayTeamId) =>
         Match.Schedule(SeasonOf(), KickoffAt(), homeTeamId, awayTeamId).ShouldSucceed();

@@ -27,4 +27,7 @@ public sealed record RatingScore
 
         return Result.Success(new RatingScore(value));
     }
+
+    // 範囲と刻みを満たしていると分かっている値から作る（参考点の計算だけで使う）
+    internal static RatingScore FromValid(decimal value) => new(value);
 }

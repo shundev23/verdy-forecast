@@ -18,4 +18,10 @@ public static class ReviewErrors
     public static readonly DomainError SecondYellowWithoutSendingOff = new("appearance.secondYellowWithoutSendingOff", "警告が2枚のときは、退場にしてください。");
 
     public static readonly DomainError PlayerNotAppeared = new("review.playerNotAppeared", "出場していない選手です。先に出場の記録を入れてください。");
+
+    public static readonly DomainError MatchNotFinished = new("review.matchNotFinished", "終わった試合（スコアがある試合）でないと、参考点は計算できません。");
+
+    public static readonly DomainError NotVerdyMatch = new("review.notVerdyMatch", "ヴェルディが出ない試合です。");
+
+    public static readonly DomainError PlayerNotInRoster = new("review.playerNotInRoster", "出場した選手が、選手名簿にいません。先に名簿に登録してください。");
 }
