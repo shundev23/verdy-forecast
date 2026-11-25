@@ -56,4 +56,7 @@ public sealed record OutcomePercentages
         var percentage = Of(outcome);
         return percentage >= Win && percentage >= Draw && percentage >= Loss;
     }
+
+    // 条件を満たしていると分かっている値から作る（D8 のルールの表だけで使う）
+    internal static OutcomePercentages FromValid(int win, int draw, int loss) => new(win, draw, loss);
 }
