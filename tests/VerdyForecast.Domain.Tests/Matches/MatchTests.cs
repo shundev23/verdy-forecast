@@ -1,3 +1,4 @@
+using Microsoft.Extensions.Time.Testing;
 using VerdyForecast.Domain.Matches;
 using VerdyForecast.Domain.Teams;
 using VerdyForecast.Domain.Tests.TestSupport;
@@ -102,6 +103,47 @@ public class MatchTests
 
         match.Kickoff.ShouldBe(Make.KickoffAt(day: 30, hour: 10));
         match.Status.ShouldBe(MatchStatus.Scheduled);
+    }
+
+    [Theory]
+    [InlineData(-1, true)]
+    [InlineData(0, false)]
+    [InlineData(1, false)]
+    public void IsOpenForPredictions_AroundKickoff_ClosesAtKickoff(int secondsFromKickoff, bool expected)
+    {
+        var match = Make.ScheduledMatch(_home, _away);
+
+        match.IsOpenForPredictions(new FakeTimeProvider(match.Kickoff.Utc.AddSeconds(secondsFromKickoff))).ShouldBe(expected);
+    }
+
+    [Fact]
+    public void IsOpenForPredictions_Postponed_IsClosedEvenBeforeKickoff()
+    {
+        var match = Make.ScheduledMatch(_home, _away);
+        match.Postpone().ShouldSucceed();
+
+        match.IsOpenForPredictions(new FakeTimeProvider(match.Kickoff.Utc.AddDays(-1))).ShouldBeFalse();
+    }
+
+    [Fact]
+    public void IsOpenForPredictions_Finished_IsClosedEvenBeforeKickoff()
+    {
+        var match = Make.ScheduledMatch(_home, _away);
+        match.RecordResult(Make.ScoreOf(1, 0)).ShouldSucceed();
+
+        match.IsOpenForPredictions(new FakeTimeProvider(match.Kickoff.Utc.AddDays(-1))).ShouldBeFalse();
+    }
+
+    [Fact]
+    public void IsOpenForPredictions_RescheduledToLater_IsOpenUntilNewKickoff()
+    {
+        var match = Make.ScheduledMatch(_home, _away);
+        var afterOriginalKickoff = match.Kickoff.Utc.AddHours(1);
+        match.Postpone().ShouldSucceed();
+        match.Reschedule(Make.KickoffAt(day: 30, hour: 10)).ShouldSucceed();
+
+        match.IsOpenForPredictions(new FakeTimeProvider(afterOriginalKickoff)).ShouldBeTrue();
+        match.IsOpenForPredictions(new FakeTimeProvider(match.Kickoff.Utc)).ShouldBeFalse();
     }
 
     [Fact]

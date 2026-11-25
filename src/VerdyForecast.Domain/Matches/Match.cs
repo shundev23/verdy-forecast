@@ -53,6 +53,17 @@ public sealed class Match
         return teamId == AwayTeamId ? Side.Away : null;
     }
 
+    /// <summary>
+    /// この試合の予想を、今、入れたり変えたり消したりできるか（作業指示書 2-3）。
+    /// 試合が予定の状態で、今がキックオフより前のときだけ。キックオフちょうどからロックする。
+    /// 延期中と終了後もロックする（延期した試合は、日時を決め直せば、その日時まで再び変えられる）。
+    /// </summary>
+    public bool IsOpenForPredictions(TimeProvider clock)
+    {
+        ArgumentNullException.ThrowIfNull(clock);
+        return IsOpenForPredictionsAt(clock.GetUtcNow());
+    }
+
     /// <summary>延期にする。新しい日時が決まったら <see cref="Reschedule"/> を呼ぶ。</summary>
     public Result Postpone()
     {
@@ -92,4 +103,8 @@ public sealed class Match
         Status = MatchStatus.Finished;
         return Result.Success();
     }
+
+    // 1回の処理の中で現在時刻を何度も読まないよう、読んだ時刻を受け取る版（自分の予想から使う）
+    internal bool IsOpenForPredictionsAt(DateTimeOffset now) =>
+        Status == MatchStatus.Scheduled && now < Kickoff.Utc;
 }
