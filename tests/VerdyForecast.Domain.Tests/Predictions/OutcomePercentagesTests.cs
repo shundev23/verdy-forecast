@@ -58,4 +58,15 @@ public class OutcomePercentagesTests
     [Fact]
     public void Of_UndefinedOutcome_Throws() =>
         Should.Throw<ArgumentOutOfRangeException>(() => Make.PercentagesOf(60, 25, 15).Of((TeamOutcome)99));
+
+    [Fact]
+    public void ToProbabilities_DividesByHundred()
+    {
+        var probabilities = Make.PercentagesOf(60, 25, 15).ToProbabilities();
+
+        probabilities.Win.ShouldBe(0.60, 1e-12);
+        probabilities.Draw.ShouldBe(0.25, 1e-12);
+        probabilities.Loss.ShouldBe(0.15, 1e-12);
+        (probabilities.Win + probabilities.Draw + probabilities.Loss).ShouldBe(1.0, 1e-12);
+    }
 }

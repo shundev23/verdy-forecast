@@ -1,4 +1,5 @@
 using VerdyForecast.Domain.Common;
+using VerdyForecast.Domain.Forecasting;
 using VerdyForecast.Domain.Matches;
 
 namespace VerdyForecast.Domain.Predictions;
@@ -59,4 +60,8 @@ public sealed record OutcomePercentages
 
     // 条件を満たしていると分かっている値から作る（D8 のルールの表だけで使う）
     internal static OutcomePercentages FromValid(int win, int draw, int loss) => new(win, draw, loss);
+
+    /// <summary>確率（0〜1）に直す。評価指標の計算に使う（作業指示書 2-7）。</summary>
+    public TeamOutcomeProbabilities ToProbabilities() =>
+        TeamOutcomeProbabilities.FromValid(Win / 100.0, Draw / 100.0, Loss / 100.0);
 }

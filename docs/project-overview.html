@@ -150,7 +150,7 @@
 
 <header>
   <h1>verdy-forecast 全体図</h1>
-  <p class="meta">最終更新: 2026-11-26（作業指示書 2-6 が終わった時点）</p>
+  <p class="meta">最終更新: 2026-11-26（作業指示書 2-7 が終わった時点）</p>
   <p>東京ヴェルディの次の試合について、勝ち・引き分け・負けの確率と予想スコアを出す個人用の Web アプリ。開発のステップが終わるたびに、この図を更新する。</p>
 </header>
 
@@ -175,7 +175,7 @@
           <td><span class="chip done">1-1 済</span><span class="chip done">1-2 済</span><span class="chip done">1-3 済</span><span class="chip done">1-4 済</span><span class="chip done">1-5 済</span><span class="chip done">1-6 済</span><span class="chip done">1-7 済</span></td>
           <td>—</td>
         </tr>
-        <tr><td>2</td><td>ドメイン（ルールと計算）</td><td><span class="chip done">2-1 済</span><span class="chip done">2-2 済</span><span class="chip done">2-3 済</span><span class="chip done">2-4 済</span><span class="chip done">2-5 済</span><span class="chip done">2-6 済</span><span class="chip doing">2-7 次</span><span class="chip">2-8</span></td><td>D4〜D8 は決定済み（作業指示書 5.1）</td></tr>
+        <tr><td>2</td><td>ドメイン（ルールと計算）</td><td><span class="chip done">2-1 済</span><span class="chip done">2-2 済</span><span class="chip done">2-3 済</span><span class="chip done">2-4 済</span><span class="chip done">2-5 済</span><span class="chip done">2-6 済</span><span class="chip done">2-7 済</span><span class="chip doing">2-8 次</span></td><td>D4〜D8 は決定済み（作業指示書 5.1）</td></tr>
         <tr><td>3</td><td>アプリケーション（ユースケース）</td><td><span class="chip">未着手</span></td><td>D9、D10</td></tr>
         <tr><td>4</td><td>インフラストラクチャ（SQL、Blob、API-Football、AI Language）</td><td><span class="chip">未着手</span></td><td>—</td></tr>
         <tr><td>5</td><td>API（BFF とエンドポイント）</td><td><span class="chip">未着手</span></td><td>D11</td></tr>
@@ -255,7 +255,7 @@
       <!-- テスト -->
       <rect class="box done" x="640" y="40" width="300" height="42" rx="8"/>
       <text class="t start" x="656" y="58">Domain.Tests</text>
-      <text class="s start" x="656" y="74">→ Domain（テスト363件）</text>
+      <text class="s start" x="656" y="74">→ Domain（テスト407件）</text>
 
       <rect class="box done" x="640" y="90" width="300" height="42" rx="8"/>
       <text class="t start" x="656" y="108">Application.Tests</text>
@@ -306,6 +306,7 @@
         <tr><td><code>Tags</code></td><td>Tag、TagKind</td><td>戦術タグのマスタ（良い点・悪い点、使用中かどうか）</td><td>2-2</td></tr>
         <tr><td><code>Ratings</code></td><td>Elo、EloSettings、RatingTable、RatingChange</td><td>Elo レーティング（D4）。期待勝ち点（ホームの補正はここだけ）、得点差の補正、増減は2チームで同じ量の逆向き。シーズンの始めに平均へ引き戻し、昇格チームは下位3チームの平均。試合はキックオフの順にしか反映できない。試合ごとの前後の値を返す（TeamRatings に保存する材料）</td><td>2-5</td></tr>
         <tr><td><code>Forecasting</code></td><td>GoalModelCoefficients、ExpectedGoals、ScoreDistribution、MatchOutcomeProbabilities、TeamOutcomeProbabilities、GoalModelFitter、GoalObservation</td><td>期待得点（D5 の式、5以下）、スコアの分布（各チーム0〜10点のポアソン分布、合計1に割り戻す）、勝ち・分け・負けの確率（分布を足し合わせる。ホームから見た向きとチームから見た向き）、予想スコアの上位。係数は最尤法（ニュートン法）で推定し、30試合未満やデータの締め切り以降の試合が混ざっているときは失敗する</td><td>2-6</td></tr>
+        <tr><td><code>Evaluation</code></td><td>ForecastMetrics、Evaluator、Baselines、EvaluationSummary</td><td>答え合わせ（評価手順書 9章）。RPS、Brier スコア、対数損失（確率の下限 1e-15）、的中、予想スコアの完全一致と得失点差の一致。自分の予想は保存した「評価に使う確率」で計算し、的中は3択で判定。ベースライン（一様、リーグ平均の頻度）と、複数の試合の平均</td><td>2-7</td></tr>
       </tbody>
     </table>
   </div>
@@ -493,7 +494,7 @@
         <tr><td><code>VerdyForecast.slnx</code></td><td>ソリューション（src と tests のフォルダ分け）</td><td><span class="chip done">作成済み</span></td></tr>
         <tr><td><code>src/VerdyForecast.*</code>（5つ）</td><td>Domain、Application、Infrastructure、Api、Functions</td><td><span class="chip done">作成済み</span><span class="chip">Domain に型あり（2-2）。ほかは空</span></td></tr>
         <tr><td><code>src/web/</code></td><td>React＋TypeScript（Vite）</td><td><span class="chip">予定 6-1</span></td></tr>
-        <tr><td><code>tests/VerdyForecast.*</code>（6つ）</td><td>.NET のテスト（単体、結合、依存ルール）</td><td><span class="chip done">作成済み</span><span class="chip">380件（Domain 363、依存ルール 17）</span></td></tr>
+        <tr><td><code>tests/VerdyForecast.*</code>（6つ）</td><td>.NET のテスト（単体、結合、依存ルール）</td><td><span class="chip done">作成済み</span><span class="chip">424件（Domain 407、依存ルール 17）</span></td></tr>
         <tr><td><code>tests/e2e/</code></td><td>Playwright</td><td><span class="chip">予定 6-4</span></td></tr>
         <tr><td><code>Directory.Build.props</code></td><td>全プロジェクト共通の設定（.NET 10、警告をエラーに、コードスタイルをビルドで強制、ロックファイル、NuGetAudit）</td><td><span class="chip done">作成済み</span></td></tr>
         <tr><td><code>Directory.Packages.props</code></td><td>パッケージのバージョンの一元管理（推移的な依存も固定できる）。今はパッケージ0個</td><td><span class="chip done">作成済み</span></td></tr>
@@ -521,6 +522,11 @@
         <tr><th>日付</th><th>ステップ</th><th>変わったこと</th></tr>
       </thead>
       <tbody>
+        <tr>
+          <td class="nowrap">2026-11-26</td>
+          <td class="nowrap">2-7</td>
+          <td>評価指標（RPS、Brier スコア、対数損失、的中、予想スコアの一致）、自分の予想とモデルの答え合わせ、ベースライン、複数の試合の平均を追加。的中の判定と対数損失の下限を、評価手順書の 9.1 に書き足した。</td>
+        </tr>
         <tr>
           <td class="nowrap">2026-11-26</td>
           <td class="nowrap">2-6</td>
