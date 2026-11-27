@@ -2,7 +2,7 @@ using VerdyForecast.Domain.Common;
 
 namespace VerdyForecast.Domain.Forecasting;
 
-/// <summary>期待得点、スコアの分布、係数の推定に関する失敗。</summary>
+/// <summary>期待得点、スコアの分布、係数の推定、モデルの予想の作成（MatchForecaster）に関する失敗。</summary>
 public static class ForecastErrors
 {
     public static readonly DomainError InvalidCoefficients = new("forecast.invalidCoefficients", "期待得点の係数が数になっていません。");
@@ -22,4 +22,8 @@ public static class ForecastErrors
     public static readonly DomainError NotEstimable = new("forecast.notEstimable", "Elo の差がすべて同じなので、係数を推定できません。");
 
     public static readonly DomainError NotConverged = new("forecast.notConverged", "係数の推定が収束しませんでした。");
+
+    public static readonly DomainError TargetPostponed = new("forecast.targetPostponed", "延期中の試合は、キックオフの日時が決まっていないので、予想を作れません。");
+
+    public static readonly DomainError CoefficientsAfterKickoff = new("forecast.coefficientsAfterKickoff", "期待得点の係数の推定に、キックオフより後の試合が使われている可能性があります（データリーケージの防止）。");
 }

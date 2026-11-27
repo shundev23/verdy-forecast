@@ -126,7 +126,9 @@ public sealed class RatingTable
 
     private Dictionary<TeamId, double> CarryOverTo(IReadOnlyCollection<TeamId> teams)
     {
-        var mean = _ratings.Values.Average();
+        // 平均は、チームの ID の順に足す。浮動小数点の足し算は順番で最後の桁が変わることがあるので、
+        // 表に入れた順番（渡された一覧や DB から読んだ順番）によらず、毎回まったく同じ値になるようにする
+        var mean = _ratings.OrderBy(pair => pair.Key.Value).Select(pair => pair.Value).Average();
         var carriedOver = _ratings.ToDictionary(
             pair => pair.Key,
             pair => mean + (_settings.CarryOver * (pair.Value - mean)));
