@@ -72,6 +72,22 @@ public class RatingTableTests
     }
 
     [Fact]
+    public void StartSeason_SameRatingsInDifferentOrder_GiveExactlySameValues()
+    {
+        // 足し算の順番で結果が変わる値（1e16 + 1 は 1e16 に丸まる）。
+        // 順番が 1, 2, 3 なら合計は 0、1, 3, 2 なら 1 になるので、順番を固定していないと平均がずれる
+        var inOrder = Restore(new() { [_team1] = 1e16, [_team2] = 1, [_team3] = -1e16 });
+        var reordered = Restore(new() { [_team1] = 1e16, [_team3] = -1e16, [_team2] = 1 });
+
+        inOrder.StartSeason(Make.SeasonOf("2026"), [_team1, _team2, _team3]).ShouldSucceed();
+        reordered.StartSeason(Make.SeasonOf("2026"), [_team1, _team2, _team3]).ShouldSucceed();
+
+        reordered.Ratings[_team1].ShouldBe(inOrder.Ratings[_team1]);
+        reordered.Ratings[_team2].ShouldBe(inOrder.Ratings[_team2]);
+        reordered.Ratings[_team3].ShouldBe(inOrder.Ratings[_team3]);
+    }
+
+    [Fact]
     public void StartSeason_OneTeam_Fails() =>
         RatingTable.Create(EloSettings.Default).StartSeason(Make.SeasonOf("2023"), [_team1]).ShouldFailWith(RatingErrors.TooFewTeams);
 
